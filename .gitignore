@@ -1,0 +1,34 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins-dependencies
+
+# Android
+android/.gradle/
+android/local.properties
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Node.js
+node_modules/
+firestore_import/node_modules/
+
+# Logs
+*.log
+firestore_import/serviceAccountKey.json
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+backend/serviceAccountKey.json
+.env

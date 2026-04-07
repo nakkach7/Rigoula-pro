@@ -1,0 +1,126 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PERMISSIONS                                                 -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    
+    <!-- Permission pour Internet (Firebase) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Permissions pour Notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    
+    <!-- Permission pour Wake Lock (garder l'app active si nécessaire) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- APPLICATION                                                 -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <application
+        android:label="Rigoula Smart"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:usesCleartextTraffic="true"
+        android:enableOnBackInvokedCallback="true">
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- MAIN ACTIVITY                                           -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true">
+
+            <!-- Theme normal -->
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+
+            <!-- Intent filter pour lancer l'app -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            
+            <!-- Intent filter pour ouvrir depuis notification -->
+            <intent-filter>
+                <action android:name="FLUTTER_NOTIFICATION_CLICK" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- NOTIFICATION RECEIVERS                                  -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        
+        <!-- Receiver pour notifications planifiées -->
+        <receiver 
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false"/>
+        
+        <!-- Receiver pour notifications au démarrage -->
+        <receiver 
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- ═══════════════════════════════════════════════════════ -->
+        <!-- META-DATA                                               -->
+        <!-- ═══════════════════════════════════════════════════════ -->
+        
+        <!-- Flutter Embedding Version 2 -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+            
+        <!-- Disable automatic Firebase initialization -->
+        <meta-data
+            android:name="firebase_analytics_collection_deactivated"
+            android:value="false" />
+
+    </application>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- QUERIES (for Android 11+)                                   -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    
+    <queries>
+        <!-- Pour le traitement de texte -->
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+        
+        <!-- Pour ouvrir des liens -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        
+        <!-- Pour les appels téléphoniques (si besoin) -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+    </queries>
+
+</manifest>
