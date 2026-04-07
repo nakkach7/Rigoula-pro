@@ -1,6 +1,7 @@
 import time
 from firebase_admin import credentials, initialize_app, db, messaging
-
+import os
+import json
 # =========================
 # CONFIGURATION
 # =========================
@@ -14,7 +15,9 @@ NOTIFICATION_COOLDOWN = 300
 # =========================
 # INITIALISATION FIREBASE
 # =========================
-cred = credentials.Certificate(SERVICE_ACCOUNT_FILE)
+firebase_key = os.environ.get("FIREBASE_KEY")
+
+cred = credentials.Certificate(json.loads(firebase_key))
 initialize_app(cred, {'databaseURL': DATABASE_URL})
 
 print("✅ Backend Python Rigoula démarré")
