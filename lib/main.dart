@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
-import 'screens/home_page.dart';
+import 'screens/splash_screen.dart'; 
 import 'services/firebase_service.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_messaging_handler.dart';
@@ -10,24 +11,24 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
- 
+  // notifications en arrière-plan (mobile)
+  if (!kIsWeb) {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  }
 
-  // Gestion des notifications en arrière-plan
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-  await NotificationService.initialize();
   await FirebaseService.initialize();
+  await NotificationService.initialize();
 
-  // ✅ CORRECTION : S'abonner au topic FCM pour recevoir les alertes du backend Python
-  await FirebaseMessaging.instance.subscribeToTopic('rigoula_alerts');
-  debugPrint('✅ Abonné au topic FCM: rigoula_alerts');
+  if (!kIsWeb) {
+    await FirebaseMessaging.instance.subscribeToTopic('rigoula_alerts');
+    debugPrint('✅ Abonné au topic FCM: rigoula_alerts');
 
-  // ✅ Demander la permission de notifications (Android 13+)
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+  }
 
   runApp(const MyApp());
 }
@@ -38,10 +39,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
+      
       title: 'Rigoula Farme',
-      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      home: const HomePage(),
+      theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
+      home: const SplashScreen(), // ✅ Démarre avec le splash screen
     );
   }
 }

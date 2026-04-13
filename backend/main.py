@@ -17,7 +17,10 @@ NOTIFICATION_COOLDOWN = 300
 # =========================
 firebase_key = os.environ.get("FIREBASE_KEY")
 
-cred = credentials.Certificate(json.loads(firebase_key))
+if firebase_key:
+    cred = credentials.Certificate(json.loads(firebase_key))
+else:
+    cred = credentials.Certificate(SERVICE_ACCOUNT_FILE)  # fallback to local file
 initialize_app(cred, {'databaseURL': DATABASE_URL})
 
 print("✅ Backend Python Rigoula démarré")

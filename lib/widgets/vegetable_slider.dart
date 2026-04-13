@@ -70,18 +70,7 @@ class _VegetableSliderState extends State<VegetableSlider> {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade100,
-                      borderRadius: BorderRadius.circular(6),
-                      image: const DecorationImage(
-                        image: AssetImage('assets/rigoula.png'),
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
+                  
                   const SizedBox(width: 8),
                   const Text(
                     "Surveillance",

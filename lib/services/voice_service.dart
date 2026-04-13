@@ -1,16 +1,17 @@
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class VoiceService {
   static final SpeechToText _speech = SpeechToText();
   static bool _isInitialized = false;
-
-  // Pour le mode écoute continue (wake word)
   static bool _continuousMode = false;
   static Function(String)? _onWakeWordCallback;
   static Function(String)? _onCommandCallback;
+  static bool _isRestarting = false;
 
   static Future<bool> initialize() async {
+    if (kIsWeb) return false; // Pas de reconnaissance vocale sur web
     if (_isInitialized) return true;
 
     _isInitialized = await _speech.initialize(
@@ -20,21 +21,27 @@ class VoiceService {
       },
       onStatus: (status) {
         debugPrint('🎤 Status: $status');
-        if (_continuousMode && (status == 'done' || status == 'notListening')) {
-          Future.delayed(const Duration(milliseconds: 400), _restartContinuousListening);
+        if (_continuousMode &&
+            (status == 'done' || status == 'notListening') &&
+            !_isRestarting) {
+          _isRestarting = true;
+          Future.delayed(const Duration(milliseconds: 600), () {
+            _isRestarting = false;
+            _restartContinuousListening();
+          });
         }
       },
     );
     return _isInitialized;
   }
 
-  static bool get isListening => _speech.isListening;
+  static bool get isListening => kIsWeb ? false : _speech.isListening;
 
-  /// ==================== ÉCOUTE CONTINUE (WAKE WORD) ====================
   static Future<void> startContinuousListening({
     required Function(String) onWakeWord,
     required Function(String) onCommand,
   }) async {
+    if (kIsWeb) return;
     if (!_isInitialized) await initialize();
 
     _continuousMode = true;
@@ -45,6 +52,9 @@ class VoiceService {
   }
 
   static Future<void> _listenForWakeWord() async {
+    if (kIsWeb || !_isInitialized) return;
+    if (_speech.isListening) return; // ✅ Évite le double start
+
     await _speech.listen(
       onResult: (result) {
         if (result.finalResult) {
@@ -64,30 +74,34 @@ class VoiceService {
       },
       localeId: 'fr_FR',
       listenMode: ListenMode.dictation,
-      cancelOnError: false,        // ← IMPORTANT : permet le redémarrage
+      cancelOnError: false,
       partialResults: false,
     );
   }
 
   static void _restartContinuousListening() {
-    if (!_continuousMode || !_isInitialized) return;
+    if (kIsWeb || !_continuousMode || !_isInitialized) return;
+    if (_speech.isListening) return; // ✅ Évite le double start
     debugPrint('🔄 Redémarrage automatique de l\'écoute continue...');
     _listenForWakeWord();
   }
 
   static void _handleSpeechError(dynamic error) {
     final msg = error.toString().toLowerCase();
-    if (msg.contains('error_no_match') && _continuousMode) {
-      // Redémarrage immédiat après silence
-      Future.delayed(const Duration(milliseconds: 600), _restartContinuousListening);
+    if (msg.contains('error_no_match') && _continuousMode && !_isRestarting) {
+      _isRestarting = true;
+      Future.delayed(const Duration(milliseconds: 600), () {
+        _isRestarting = false;
+        _restartContinuousListening();
+      });
     }
   }
 
-  /// Écoute ponctuelle (après wake word)
   static Future<void> startListening({
     required Function(String) onResult,
   }) async {
-    if (!_isInitialized) await initialize();
+    if (kIsWeb || !_isInitialized) return;
+    if (_speech.isListening) await _speech.stop();
 
     await _speech.listen(
       onResult: (result) {
@@ -105,42 +119,50 @@ class VoiceService {
   }
 
   static Future<void> stopListening() async {
+    if (kIsWeb) return;
     await _speech.stop();
   }
 
   static Future<void> stopContinuousListening() async {
+    if (kIsWeb) return;
     _continuousMode = false;
+    _isRestarting = false;
     await _speech.stop();
   }
 
-  // Parse des commandes (inchangé)
   static VoiceCommand parseCommand(String text) {
     debugPrint('🎤 Analyse commande: "$text"');
     text = text.toLowerCase();
 
     if (text.contains('pompe') || text.contains('pump')) {
-      if (text.contains('activ') || text.contains('on') || text.contains('marche') || text.contains('démarre')) {
+      if (text.contains('activ') || text.contains('on') ||
+          text.contains('marche') || text.contains('démarre')) {
         return VoiceCommand.pumpOn;
       }
-      if (text.contains('désactiv') || text.contains('off') || text.contains('arrêt') || text.contains('stop')) {
+      if (text.contains('désactiv') || text.contains('off') ||
+          text.contains('arrêt') || text.contains('stop')) {
         return VoiceCommand.pumpOff;
       }
     }
-    if (text.contains('auto') || text.contains('automatique')) return VoiceCommand.modeAuto;
+    if (text.contains('auto') || text.contains('automatique')) {
+      return VoiceCommand.modeAuto;
+    }
     if (text.contains('manuel')) return VoiceCommand.modeManuel;
-
     if (text.contains('histori')) return VoiceCommand.openHistorique;
-    if (text.contains('paramètre') || text.contains('setting') || text.contains('config')) return VoiceCommand.openSettings;
-
-    if (text.contains('tomate') || text.contains('home') || text.contains('acceuil')) return VoiceCommand.slideTomate;
+    if (text.contains('paramètre') || text.contains('setting') ||
+        text.contains('config')) return VoiceCommand.openSettings;
+    if (text.contains('tomate') || text.contains('home') ||
+        text.contains('acceuil')) return VoiceCommand.slideTomate;
     if (text.contains('aubergine')) return VoiceCommand.slideAubergine;
     if (text.contains('poivron')) return VoiceCommand.slidePoivron;
     if (text.contains('concombre')) return VoiceCommand.slideConcombre;
-    if (text.contains('suivant') || text.contains('prochain')) return VoiceCommand.slideNext;
-    if (text.contains('précédent') || text.contains('retour')) return VoiceCommand.slidePrev;
-  if (text.contains('retour') || text.contains('accueil') || text.contains('home') || text.contains('principale') || text.contains('page principale')) {
-    return VoiceCommand.returnHome;
-  }
+    if (text.contains('suivant') || text.contains('prochain')) {
+      return VoiceCommand.slideNext;
+    }
+    if (text.contains('précédent')) return VoiceCommand.slidePrev;
+    if (text.contains('retour') || text.contains('accueil') ||
+        text.contains('principale')) return VoiceCommand.returnHome;
+
     return VoiceCommand.unknown;
   }
 }
