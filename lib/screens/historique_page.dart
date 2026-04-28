@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
+import '../services/firebase_service.dart';
 import '../models/history_data.dart';
 
 class HistoriquePage extends StatefulWidget {
-  const HistoriquePage({super.key});
+  /// The Firebase key for this greenhouse (e.g. "tomate", "tomate_cerise")
+  final String serreId;
+
+  const HistoriquePage({super.key, required this.serreId});
 
   @override
   State<HistoriquePage> createState() => _HistoriquePageState();
@@ -13,6 +16,9 @@ class _HistoriquePageState extends State<HistoriquePage> {
   List<DayHistory> _history = [];
   bool _loading = false;
   String? _error;
+
+  String get _serreLabel =>
+      widget.serreId == SerreId.tomate ? 'Tomate 🍅' : 'Tomate Cerise 🍒';
 
   @override
   void initState() {
@@ -26,19 +32,13 @@ class _HistoriquePageState extends State<HistoriquePage> {
       _error = null;
     });
     try {
-      debugPrint('🔄 Début sync historique...');
-      final ref = FirebaseDatabase.instance.ref("historique");
-
-      ref.onValue.first
+      FirebaseService.getHistoryStream(widget.serreId)
+          .first
           .timeout(
-        const Duration(seconds: 15),
-        onTimeout: () =>
-            throw Exception('Timeout - pas de réponse Firebase'),
-      )
+            const Duration(seconds: 15),
+            onTimeout: () => throw Exception('Timeout - pas de réponse Firebase'),
+          )
           .then((event) {
-        debugPrint('📦 Snapshot reçu: exists=${event.snapshot.exists}');
-        debugPrint('📦 Valeur: ${event.snapshot.value}');
-
         if (!event.snapshot.exists) {
           setState(() {
             _history = [];
@@ -47,13 +47,11 @@ class _HistoriquePageState extends State<HistoriquePage> {
           return;
         }
 
-        final data =
-            Map<String, dynamic>.from(event.snapshot.value as Map);
+        final data = Map<String, dynamic>.from(event.snapshot.value as Map);
         final List<DayHistory> result = [];
         data.forEach((date, value) {
           if (value is Map) {
-            result.add(DayHistory.fromMap(
-                date, Map<dynamic, dynamic>.from(value)));
+            result.add(DayHistory.fromMap(date, Map<dynamic, dynamic>.from(value)));
           }
         });
 
@@ -62,16 +60,13 @@ class _HistoriquePageState extends State<HistoriquePage> {
           _history = result.take(7).toList();
           _loading = false;
         });
-        debugPrint('✅ Historique chargé: ${_history.length} jours');
       }).catchError((e) {
-        debugPrint('❌ Erreur: $e');
         setState(() {
           _error = e.toString();
           _loading = false;
         });
       });
     } catch (e) {
-      debugPrint('❌ Erreur sync: $e');
       setState(() {
         _error = e.toString();
         _loading = false;
@@ -84,8 +79,10 @@ class _HistoriquePageState extends State<HistoriquePage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text("Historique",
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          "Historique — $_serreLabel",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 2,
@@ -104,8 +101,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline,
-                          color: Colors.red, size: 48),
+                      const Icon(Icons.error_outline, color: Colors.red, size: 48),
                       const SizedBox(height: 12),
                       Text("Erreur : $_error",
                           style: const TextStyle(color: Colors.red),
@@ -136,14 +132,14 @@ class _HistoriquePageState extends State<HistoriquePage> {
                       child: ListView.builder(
                         padding: const EdgeInsets.all(12),
                         itemCount: _history.length,
-                        itemBuilder: (context, i) =>
-                            _DayCard(day: _history[i]),
+                        itemBuilder: (context, i) => _DayCard(day: _history[i]),
                       ),
                     ),
     );
   }
 }
 
+// ─── Day card (unchanged logic, copied from original) ─────────────────────────
 class _DayCard extends StatefulWidget {
   final DayHistory day;
   const _DayCard({required this.day});
@@ -160,21 +156,18 @@ class _DayCardState extends State<_DayCard> {
     final d = widget.day;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ─── En-tête date ───
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(children: [
-                  const Icon(Icons.calendar_today,
-                      size: 16, color: Colors.grey),
+                  const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                   const SizedBox(width: 6),
                   Text(d.date,
                       style: const TextStyle(
@@ -182,19 +175,13 @@ class _DayCardState extends State<_DayCard> {
                 ]),
                 GestureDetector(
                   onTap: () => setState(() => _expanded = !_expanded),
-                  child: Icon(_expanded
-                      ? Icons.expand_less
-                      : Icons.expand_more),
+                  child: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
                 ),
               ],
             ),
-
             const SizedBox(height: 12),
-
-            // ─── Pompe count ───
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.blue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
@@ -213,23 +200,17 @@ class _DayCardState extends State<_DayCard> {
                 ),
               ]),
             ),
-
-            // ─── Détails min/max ───
             if (_expanded) ...[
               const SizedBox(height: 12),
               const Divider(),
               const SizedBox(height: 8),
-              _buildMinMax("Température", d.tempMin, d.tempMax,
-                  "°C", Colors.orange),
+              _buildMinMax("Température", d.tempMin, d.tempMax, "°C", Colors.orange),
               const SizedBox(height: 8),
-              _buildMinMax(
-                  "Humidité air", d.humMin, d.humMax, "%", Colors.blue),
+              _buildMinMax("Humidité air", d.humMin, d.humMax, "%", Colors.blue),
               const SizedBox(height: 8),
-              _buildMinMax("Humidité sol", d.soilMin, d.soilMax,
-                  "%", Colors.brown),
+              _buildMinMax("Humidité sol", d.soilMin, d.soilMax, "%", Colors.brown),
             ] else ...[
               const SizedBox(height: 8),
-              // Aperçu compact quand fermé
               Row(children: [
                 _miniChip(
                     "${d.tempMin.toStringAsFixed(0)}-${d.tempMax.toStringAsFixed(0)}°C",
@@ -250,8 +231,8 @@ class _DayCardState extends State<_DayCard> {
     );
   }
 
-  Widget _buildMinMax(String label, double min, double max,
-      String unit, Color color) {
+  Widget _buildMinMax(
+      String label, double min, double max, String unit, Color color) {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -264,17 +245,12 @@ class _DayCardState extends State<_DayCard> {
         children: [
           Text(label,
               style: TextStyle(
-                  fontSize: 13,
-                  color: color,
-                  fontWeight: FontWeight.w600)),
+                  fontSize: 13, color: color, fontWeight: FontWeight.w600)),
           Row(children: [
-            _pill(
-                "Min ${min.toStringAsFixed(1)}$unit",
-                color.withOpacity(0.15),
-                color),
+            _pill("Min ${min.toStringAsFixed(1)}$unit",
+                color.withOpacity(0.15), color),
             const SizedBox(width: 6),
-            _pill("Max ${max.toStringAsFixed(1)}$unit", color,
-                Colors.white),
+            _pill("Max ${max.toStringAsFixed(1)}$unit", color, Colors.white),
           ]),
         ],
       ),
@@ -284,13 +260,11 @@ class _DayCardState extends State<_DayCard> {
   Widget _pill(String text, Color bg, Color textColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-          color: bg, borderRadius: BorderRadius.circular(12)),
+      decoration:
+          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
       child: Text(text,
           style: TextStyle(
-              fontSize: 12,
-              color: textColor,
-              fontWeight: FontWeight.w600)),
+              fontSize: 12, color: textColor, fontWeight: FontWeight.w600)),
     );
   }
 
@@ -303,9 +277,7 @@ class _DayCardState extends State<_DayCard> {
       ),
       child: Text(text,
           style: TextStyle(
-              fontSize: 11,
-              color: color,
-              fontWeight: FontWeight.w600)),
+              fontSize: 11, color: color, fontWeight: FontWeight.w600)),
     );
   }
 }

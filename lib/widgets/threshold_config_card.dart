@@ -28,6 +28,8 @@ class _ThresholdConfigCardState extends State<ThresholdConfigCard> {
       tempMax: widget.thresholdConfig.tempMax,
       humMin: widget.thresholdConfig.humMin,
       humMax: widget.thresholdConfig.humMax,
+      
+      
     );
   }
 
@@ -131,6 +133,38 @@ class _ThresholdConfigCardState extends State<ThresholdConfigCard> {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+
+// Soil thresholds
+const Text(
+  "Humidité du sol (%)",
+  style: TextStyle(
+    fontWeight: FontWeight.w600,
+    fontSize: 16,
+  ),
+),
+const SizedBox(height: 8),
+Row(
+  children: [
+    _buildThresholdInput(
+      "Min",
+      _config.solMin,
+      (v) => setState(
+        () => _config.solMin =
+            double.tryParse(v) ?? _config.solMin,
+      ),
+    ),
+    const SizedBox(width: 12),
+    _buildThresholdInput(
+      "Max",
+      _config.solMax,
+      (v) => setState(
+        () => _config.solMax =
+            double.tryParse(v) ?? _config.solMax,
+      ),
+    ),
+  ],
+),
 
             const SizedBox(height: 20),
 

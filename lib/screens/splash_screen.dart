@@ -1,8 +1,17 @@
+// lib/screens/splash_screen.dart
+//
+// Only change from original: accepts an optional AlertPayload and forwards
+// it to HomePage so the correct serre slide opens on launch.
+
 import 'package:flutter/material.dart';
 import 'home_page.dart';
+import '../models/alert_payload.dart'; // ← NEW
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  /// Forwarded from main() when the app was cold-started via a notification tap.
+  final AlertPayload? initialAlert; // ← NEW
+
+  const SplashScreen({super.key, this.initialAlert}); // ← NEW
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -37,16 +46,16 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // Naviguer vers HomePage après 2.5 secondes
     Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 600),
-            pageBuilder: (_, __, ___) => const HomePage(),
-            transitionsBuilder: (_, animation, __, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
+            pageBuilder: (_, __, ___) => HomePage(
+              initialAlert: widget.initialAlert, // ← FORWARD
+            ),
+            transitionsBuilder: (_, animation, __, child) =>
+                FadeTransition(opacity: animation, child: child),
           ),
         );
       }
@@ -62,7 +71,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F8E9), // vert très clair
+      backgroundColor: const Color(0xFFF1F8E9),
       body: Center(
         child: FadeTransition(
           opacity: _fadeAnim,
@@ -71,7 +80,6 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo Rigoula
                 Container(
                   width: 160,
                   height: 160,
@@ -87,16 +95,10 @@ class _SplashScreenState extends State<SplashScreen>
                     ],
                   ),
                   child: ClipOval(
-                    child: Image.asset(
-                      'assets/rigoula.png',
-                      fit: BoxFit.contain,
-                    ),
+                    child: Image.asset('assets/rigoula.png', fit: BoxFit.contain),
                   ),
                 ),
-
                 const SizedBox(height: 28),
-
-                // Nom de l'application
                 const Text(
                   'Rigoula',
                   style: TextStyle(
@@ -106,9 +108,7 @@ class _SplashScreenState extends State<SplashScreen>
                     letterSpacing: 1.5,
                   ),
                 ),
-
                 const SizedBox(height: 6),
-
                 const Text(
                   'Smart Farming',
                   style: TextStyle(
@@ -118,18 +118,14 @@ class _SplashScreenState extends State<SplashScreen>
                     letterSpacing: 3,
                   ),
                 ),
-
                 const SizedBox(height: 48),
-
-                // Indicateur de chargement
                 SizedBox(
                   width: 32,
                   height: 32,
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.green.shade400,
-                    ),
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(Colors.green.shade400),
                   ),
                 ),
               ],

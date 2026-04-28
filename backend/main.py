@@ -2,54 +2,62 @@ import time
 from firebase_admin import credentials, initialize_app, db, messaging
 import os
 import json
+
 # =========================
 # CONFIGURATION
 # =========================
 SERVICE_ACCOUNT_FILE = "serviceAccountKey.json"
 DATABASE_URL = "https://rigoula-smart-default-rtdb.firebaseio.com"
 TOPIC_NAME = "rigoula_alerts"
-
 CHECK_INTERVAL_SECONDS = 10
 NOTIFICATION_COOLDOWN = 300
+SERRES = ["tomate", "tomate_cerise"]
 
 # =========================
-# INITIALISATION FIREBASE
+# FIREBASE INIT
 # =========================
 firebase_key = os.environ.get("FIREBASE_KEY")
-
 if firebase_key:
     cred = credentials.Certificate(json.loads(firebase_key))
 else:
-    cred = credentials.Certificate(SERVICE_ACCOUNT_FILE)  # fallback to local file
+    cred = credentials.Certificate(SERVICE_ACCOUNT_FILE)
 initialize_app(cred, {'databaseURL': DATABASE_URL})
 
-print("✅ Backend Python Rigoula démarré")
-print(f"📡 Base de données: {DATABASE_URL}")
-print(f"🔔 Topic FCM: {TOPIC_NAME}")
-print(f"⏱️  Vérification toutes les {CHECK_INTERVAL_SECONDS} secondes")
+print("✅ Backend Python Rigoula démarré (multi-serre + FCM data payload)")
+print(f"🏡 Serres: {SERRES}")
 print("-" * 50)
 
-last_sent_message = None
-last_sent_time = 0
+last_sent = {s: {"message": None, "time": 0} for s in SERRES}
 
 # =========================
-# RÉFÉRENCES FIREBASE
+# FIREBASE REFERENCES
 # =========================
-sensor_ref = db.reference("/capteurs/dernier")
-config_ref = db.reference("/config")
-pump_command_ref = db.reference("/capteurs/commandes/pompe")
-mode_command_ref = db.reference("/capteurs/commandes/mode")
+def sensor_ref(serre_id): return db.reference(f"/serres/{serre_id}/capteurs")
+def config_ref(serre_id):  return db.reference(f"/serres/{serre_id}/config")
+def pump_cmd_ref(serre_id):return db.reference(f"/serres/{serre_id}/pompe/status")
+def mode_cmd_ref(serre_id):return db.reference(f"/serres/{serre_id}/pompe/mode")
 
 # =========================
-# NOTIFICATION FCM
+# FCM — STRUCTURED DATA PAYLOAD
+# IMPORTANT: "data" fields are always strings (FCM requirement).
+# Flutter reads message.data['serre'], message.data['type'], etc.
+# We also send a notification block so the system tray banner appears.
 # =========================
-def send_push_notification(title: str, body: str):
+def send_push_notification(serre_id: str, alert_type: str, title: str, body: str):
+    """
+    Sends an FCM message with both a visible notification AND a data payload.
+
+    Data payload keys (all strings):
+      serre     — "tomate" | "tomate_cerise"
+      type      — "temp_high" | "temp_low" | "humidity_high" | "humidity_low"
+                  | "soil_high" | "soil_low"
+      message   — human-readable description
+      timestamp — unix seconds as string
+    """
     try:
         message = messaging.Message(
-            notification=messaging.Notification(
-                title=title,
-                body=body,
-            ),
+            # System-tray banner (shown by OS when app is background/terminated)
+            notification=messaging.Notification(title=title, body=body),
             topic=TOPIC_NAME,
             android=messaging.AndroidConfig(
                 priority="high",
@@ -57,169 +65,180 @@ def send_push_notification(title: str, body: str):
                     sound="default",
                     priority="max",
                     visibility="public",
+                    # click_action tells Flutter to call getInitialMessage()
+                    click_action="FLUTTER_NOTIFICATION_CLICK",
                 ),
             ),
+            apns=messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(sound="default"),
+                ),
+            ),
+            # DATA PAYLOAD — drives navigation & highlighting in Flutter
             data={
-                "click_action": "FLUTTER_NOTIFICATION_CLICK",
-                "type": "alert",
-                "title": title,
-                "body": body,
+                "serre":     serre_id,
+                "type":      alert_type,           # machine-readable type
+                "message":   body,                 # human-readable text
+                "timestamp": str(int(time.time())),
             },
         )
         response = messaging.send(message)
-        print(f"📲 Notification FCM envoyée: {response}")
+        print(f"📲 FCM [{serre_id}] type={alert_type} → {response}")
     except Exception as e:
-        print(f"❌ Erreur notification FCM: {e}")
+        print(f"❌ Erreur FCM [{serre_id}]: {e}")
+
 
 # =========================
-# LECTURE DONNÉES
+# ALERT ANALYSIS
+# Returns list of (alert_type, human_message) tuples
 # =========================
-def get_sensor_data():
-    return sensor_ref.get()
-
-def get_config():
-    return config_ref.get()
-
-# =========================
-# ANALYSE DES ALERTES
-# ✅ CORRECTION : "emp_min" → "temp_min" (typo dans Firebase corrigé)
-# =========================
-def analyze_alerts(sensor_data, config):
+def analyze_alerts(serre_id: str, sensor_data: dict, config: dict) -> list:
     alerts = []
     if not sensor_data or not config:
-        if not sensor_data:
-            print("⚠️  Aucune donnée capteur reçue de Firebase")
-        if not config:
-            print("⚠️  Aucune config trouvée dans Firebase /config")
         return alerts
-
     try:
-        temperature = float(sensor_data.get("temperature", 0))
-        humidity = float(sensor_data.get("humidity", 0))
+        temperature  = float(sensor_data.get("temperature", 0))
+        humidity     = float(sensor_data.get("humidity", 0))
         soil_percent = float(sensor_data.get("soil_percent", 0))
 
-        # ✅ CORRECTION : "temp_min" (avant c'était "emp_min" dans Firebase — typo!)
         temp_min = float(config.get("temp_min", 0))
         temp_max = float(config.get("temp_max", 100))
-        hum_min = float(config.get("hum_min", 0))
-        hum_max = float(config.get("hum_max", 100))
+        hum_min  = float(config.get("hum_min", 0))
+        hum_max  = float(config.get("hum_max", 100))
         soil_min = float(config.get("soil_min", 0))
         soil_max = float(config.get("soil_max", 100))
 
-        print(f"  🌡️  Temp: {temperature}°C (seuils: {temp_min}-{temp_max}°C)")
-        print(f"  💧  Hum:  {humidity}%   (seuils: {hum_min}-{hum_max}%)")
-        print(f"  🌱  Sol:  {soil_percent}%  (seuils: {soil_min}-{soil_max}%)")
+        print(f"  [{serre_id}] 🌡️{temperature}°C ({temp_min}-{temp_max}) "
+              f"💧{humidity}% ({hum_min}-{hum_max}) "
+              f"🌱{soil_percent}% ({soil_min}-{soil_max})")
 
         if temperature < temp_min:
-            alerts.append(f"🥶 Température trop basse : {temperature:.1f}°C (min: {temp_min}°C)")
+            alerts.append(("temp_low",
+                f"🥶 Température trop basse : {temperature:.1f}°C (min: {temp_min}°C)"))
         elif temperature > temp_max:
-            alerts.append(f"🔥 Température trop élevée : {temperature:.1f}°C (max: {temp_max}°C)")
+            alerts.append(("temp_high",
+                f"🔥 Température trop élevée : {temperature:.1f}°C (max: {temp_max}°C)"))
 
         if humidity < hum_min:
-            alerts.append(f"💨 Humidité trop basse : {humidity:.1f}% (min: {hum_min}%)")
+            alerts.append(("humidity_low",
+                f"💨 Humidité trop basse : {humidity:.1f}% (min: {hum_min}%)"))
         elif humidity > hum_max:
-            alerts.append(f"💧 Humidité trop élevée : {humidity:.1f}% (max: {hum_max}%)")
+            alerts.append(("humidity_high",
+                f"💧 Humidité trop élevée : {humidity:.1f}% (max: {hum_max}%)"))
 
         if soil_percent < soil_min:
-            alerts.append(f"🏜️ Sol trop sec : {soil_percent:.1f}% (min: {soil_min}%)")
+            alerts.append(("soil_low",
+                f"🏜️ Sol trop sec : {soil_percent:.1f}% (min: {soil_min}%)"))
         elif soil_percent > soil_max:
-            alerts.append(f"🌊 Sol trop humide : {soil_percent:.1f}% (max: {soil_max}%)")
+            alerts.append(("soil_high",
+                f"🌊 Sol trop humide : {soil_percent:.1f}% (max: {soil_max}%)"))
 
     except Exception as e:
-        print(f"❌ Erreur analyse: {e}")
-
+        print(f"❌ Erreur analyse [{serre_id}]: {e}")
     return alerts
 
+
 # =========================
-# ANTI-SPAM NOTIFICATIONS
+# ANTI-SPAM
 # =========================
-def should_send_notification(message: str):
-    global last_sent_message, last_sent_time
+def should_send(serre_id: str, message: str) -> bool:
     current_time = time.time()
-    if message == last_sent_message and (current_time - last_sent_time) < NOTIFICATION_COOLDOWN:
-        remaining = int(NOTIFICATION_COOLDOWN - (current_time - last_sent_time))
-        print(f"⏳ Anti-spam: même alerte ignorée ({remaining}s restantes)")
+    state = last_sent[serre_id]
+    if (message == state["message"] and
+            (current_time - state["time"]) < NOTIFICATION_COOLDOWN):
+        remaining = int(NOTIFICATION_COOLDOWN - (current_time - state["time"]))
+        print(f"⏳ [{serre_id}] Anti-spam ({remaining}s restantes)")
         return False
-    last_sent_message = message
-    last_sent_time = current_time
+    state["message"] = message
+    state["time"] = current_time
     return True
 
-def save_last_alert(alerts):
+
+def save_last_alert(serre_id: str, alert_type: str, alerts: list):
+    """Writes /serres/{id}/last_alert so Flutter can read it as a fallback."""
     try:
-        db.reference("/last_alert").set({
-            "alerts": alerts,
-            "message": " | ".join(alerts),
-            "timestamp": int(time.time())
+        db.reference(f"/serres/{serre_id}/last_alert").set({
+            "type":      alert_type,
+            "alerts":    [msg for _, msg in alerts],
+            "message":   " | ".join(msg for _, msg in alerts),
+            "timestamp": int(time.time()),
         })
     except Exception as e:
-        print(f"❌ Erreur sauvegarde alerte: {e}")
+        print(f"❌ Erreur save_last_alert [{serre_id}]: {e}")
+
 
 # =========================
-# ÉCOUTE COMMANDES FLUTTER
+# COMMAND LISTENERS (per serre)
 # =========================
-def on_pump_command(event):
-    try:
-        command = event.data
-        if command in ["ON", "OFF"]:
-            sensor_ref.update({"pump": command})
-            print(f"🔧 Pompe → {command} (commande Flutter reçue)")
-    except Exception as e:
-        print(f"❌ Erreur commande pompe: {e}")
+def make_pump_listener(serre_id):
+    def handler(event):
+        try:
+            if event.data in ["ON", "OFF"]:
+                sensor_ref(serre_id).update({"pump": event.data})
+                print(f"🔧 [{serre_id}] Pompe → {event.data}")
+        except Exception as e:
+            print(f"❌ commande pompe [{serre_id}]: {e}")
+    return handler
 
-def on_mode_command(event):
-    try:
-        mode = event.data
-        if mode in ["AUTO", "MANUEL"]:
-            sensor_ref.update({"mode": mode})
-            print(f"🔧 Mode → {mode} (commande Flutter reçue)")
-    except Exception as e:
-        print(f"❌ Erreur commande mode: {e}")
+def make_mode_listener(serre_id):
+    def handler(event):
+        try:
+            if event.data in ["AUTO", "MANUEL"]:
+                sensor_ref(serre_id).update({"mode": event.data})
+                print(f"🔧 [{serre_id}] Mode → {event.data}")
+        except Exception as e:
+            print(f"❌ commande mode [{serre_id}]: {e}")
+    return handler
 
-pump_command_ref.listen(on_pump_command)
-mode_command_ref.listen(on_mode_command)
-print("👂 Écoute des commandes Flutter active (pompe + mode)")
+for serre in SERRES:
+    pump_cmd_ref(serre).listen(make_pump_listener(serre))
+    mode_cmd_ref(serre).listen(make_mode_listener(serre))
+    print(f"👂 Commandes [{serre}] actives")
+
 print("-" * 50)
 
 # =========================
-# BOUCLE PRINCIPALE
+# MAIN LOOP
 # =========================
 def main_loop():
     cycle = 0
     while True:
         cycle += 1
+        print(f"\n📥 Cycle #{cycle} — {time.strftime('%H:%M:%S')}")
         try:
-            print(f"\n📥 Cycle #{cycle} — {time.strftime('%H:%M:%S')}")
+            for serre_id in SERRES:
+                sensor_data = sensor_ref(serre_id).get()
+                config      = config_ref(serre_id).get()
 
-            sensor_data = get_sensor_data()
-            config = get_config()
+                if not sensor_data:
+                    print(f"⚠️  [{serre_id}] Pas de données")
+                    continue
 
-            if not sensor_data:
-                print("❌ Pas de données Arduino dans Firebase — l'Arduino est-il connecté?")
-                time.sleep(CHECK_INTERVAL_SECONDS)
-                continue
+                alerts = analyze_alerts(serre_id, sensor_data, config or {})
 
-            alerts = analyze_alerts(sensor_data, config)
+                if alerts:
+                    # Use the first (most critical) alert type for the data payload
+                    primary_type, _ = alerts[0]
+                    label = serre_id.replace("_", " ").title()
 
-            if alerts:
-                if len(alerts) == 1:
-                    title = "⚠️ Alerte Rigoula"
-                    body = alerts[0]
+                    if len(alerts) == 1:
+                        title = f"⚠️ Alerte {label}"
+                        body  = alerts[0][1]
+                    else:
+                        title = f"⚠️ {label} — {len(alerts)} alertes"
+                        body  = " | ".join(msg for _, msg in alerts)
+
+                    if should_send(serre_id, body):
+                        send_push_notification(serre_id, primary_type, title, body)
+                        save_last_alert(serre_id, primary_type, alerts)
                 else:
-                    title = f"⚠️ Alertes Multiples ({len(alerts)})"
-                    body = " | ".join(alerts)
-
-                print(f"🚨 {len(alerts)} alerte(s) détectée(s)")
-                if should_send_notification(body):
-                    send_push_notification(title, body)
-                    save_last_alert(alerts)
-            else:
-                print("✅ Tous les capteurs dans les seuils")
+                    print(f"✅ [{serre_id}] OK")
 
         except KeyboardInterrupt:
-            print("\n\n🛑 Backend arrêté manuellement")
+            print("\n🛑 Backend arrêté manuellement")
             break
         except Exception as e:
-            print(f"❌ Erreur cycle principal: {e}")
+            print(f"❌ Erreur cycle: {e}")
 
         time.sleep(CHECK_INTERVAL_SECONDS)
 

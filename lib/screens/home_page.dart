@@ -1,338 +1,558 @@
+// ══════════════════════════════════════════════════════════════════════════════
+// PATCH for home_page.dart
+// Replace ONLY the sections marked ← CHANGED.
+// Everything else (Firebase, pump, settings, etc.) stays identical.
+// ══════════════════════════════════════════════════════════════════════════════
+
+// 1. Add WidgetsBindingObserver to the State class declaration:
+//
+//   class _HomePageState extends State<HomePage>
+//       with WidgetsObserverMixin            // ← CHANGED (see mixin below)
+//
+// Because Dart doesn't allow multiple `with` clauses mixing State mixins
+// easily, the cleanest pattern is to implement WidgetsBindingObserver directly:
+
+/*
+──────────────────────────────────────────────────────────────────────────────
+STEP A — change the class signature
+──────────────────────────────────────────────────────────────────────────────
+BEFORE:
+  class _HomePageState extends State<HomePage> {
+
+AFTER:
+  class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
+*/
+
+/*
+──────────────────────────────────────────────────────────────────────────────
+STEP B — register / unregister the observer in initState / dispose
+──────────────────────────────────────────────────────────────────────────────
+In initState(), ADD at the very top:
+  WidgetsBinding.instance.addObserver(this);
+
+In dispose(), ADD before super.dispose():
+  WidgetsBinding.instance.removeObserver(this);
+*/
+
+/*
+──────────────────────────────────────────────────────────────────────────────
+STEP C — override didChangeAppLifecycleState
+──────────────────────────────────────────────────────────────────────────────
+Add this method to _HomePageState:
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:        // Flutter 3.13+
+        VoiceService.pause();               // stops mic immediately
+        break;
+      case AppLifecycleState.resumed:
+        VoiceService.resume();              // restarts correct loop
+        break;
+      case AppLifecycleState.inactive:
+        break;                              // short interruption — do nothing
+    }
+  }
+*/
+
+/*
+──────────────────────────────────────────────────────────────────────────────
+STEP D — replace _startContinuousWakeWordListening() and related voice methods
+──────────────────────────────────────────────────────────────────────────────
+Remove the old methods:
+  • _startContinuousWakeWordListening()
+  • _startCommandListeningSession()
+
+Replace with:
+*/
+
+// ── Voice setup ──────────────────────────────────────────────────────────────
+//
+//   void _setupVoice() {
+//     // Assign callbacks BEFORE calling initialize so they are ready
+//     // when the engine fires its first status event.
+//     VoiceService.onSessionStarted = () {
+//       if (!mounted) return;
+//       setState(() => _isListening = true);
+//       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+//         content: const Text('🎤 Rigoula à votre écoute !'),
+//         backgroundColor: _activeColor,
+//         duration: const Duration(seconds: 2),
+//       ));
+//     };
+//
+//     VoiceService.onCommandReceived = (command, raw) {
+//       if (!mounted) return;
+//       _handleVoiceCommand(command, raw);
+//     };
+//
+//     VoiceService.onSessionEnded = () {
+//       if (!mounted) return;
+//       setState(() => _isListening = false);
+//       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+//         content: Text('🔇 Session vocale terminée'),
+//         backgroundColor: Colors.grey,
+//         duration: Duration(seconds: 2),
+//       ));
+//     };
+//
+//     VoiceService.initialize().then((_) => VoiceService.startIdleListening());
+//   }
+
+/*
+──────────────────────────────────────────────────────────────────────────────
+STEP E — update _handleVoiceCommand signature
+──────────────────────────────────────────────────────────────────────────────
+BEFORE:
+  Future<void> _handleVoiceCommand(String text) async {
+    final command = VoiceService.parseCommand(text);
+    switch (command) { ... }
+  }
+
+AFTER:
+  Future<void> _handleVoiceCommand(VoiceCommand command, String raw) async {
+    switch (command) { ... }   // same body, no parseCommand call needed
+  }
+*/
+
+/*
+──────────────────────────────────────────────────────────────────────────────
+STEP F — update _openSettings / _openHistorique
+──────────────────────────────────────────────────────────────────────────────
+BEFORE:
+  await VoiceService.stopContinuousListening();
+  ...
+  if (mounted) _startContinuousWakeWordListening();
+
+AFTER:
+  await VoiceService.stopSession();
+  ...
+  if (mounted) VoiceService.startIdleListening();
+*/
+
+/*
+──────────────────────────────────────────────────────────────────────────────
+STEP G — update dispose()
+──────────────────────────────────────────────────────────────────────────────
+BEFORE:
+  VoiceService.stopContinuousListening();
+
+AFTER:
+  VoiceService.pause();   // stops mic without clearing session flag
+*/
+
+// ══════════════════════════════════════════════════════════════════════════════
+// COMPLETE MINIMAL home_page.dart DIFF (copy-paste ready)
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// Only the voice-related lines change; everything else is identical to your
+// original file.  Lines marked [+] are new; lines marked [-] are removed.
+//
+// class _HomePageState extends State<HomePage> {          [-]
+// class _HomePageState extends State<HomePage>            [+]
+//     with WidgetsBindingObserver {                       [+]
+//
+// initState() {
+//   [+] WidgetsBinding.instance.addObserver(this);
+//   ...
+//   [-] VoiceService.initialize().then((_) => _startContinuousWakeWordListening());
+//   [+] _setupVoice();
+// }
+//
+// dispose() {
+//   [-] VoiceService.stopContinuousListening();
+//   [+] WidgetsBinding.instance.removeObserver(this);
+//   [+] VoiceService.pause();
+//   ...
+// }
+//
+// [+] @override
+// [+] void didChangeAppLifecycleState(AppLifecycleState state) { ... }
+//
+// [+] void _setupVoice() { ... }
+//
+// [-] void _startContinuousWakeWordListening() { ... }
+// [-] void _startCommandListeningSession()    { ... }
+//
+// [-] Future<void> _handleVoiceCommand(String text) async {
+// [-]   final command = VoiceService.parseCommand(text);
+// [+] Future<void> _handleVoiceCommand(VoiceCommand command, String raw) async {
+//
+// ══════════════════════════════════════════════════════════════════════════════
+// FULL PATCHED home_page.dart (voice sections only, rest unchanged)
+// ══════════════════════════════════════════════════════════════════════════════
+
+import 'dart:async';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import '../services/firebase_service.dart';
 import '../services/notification_service.dart';
+import '../services/notification_router.dart';
 import '../models/sensor_data.dart';
 import '../models/soil_sensor_data.dart';
 import '../models/threshold_config.dart';
+import '../models/alert_payload.dart';
 import '../widgets/vegetable_slider.dart';
 import '../widgets/alert_banner.dart';
 import 'settings_page.dart';
 import 'historique_page.dart';
 import '../services/voice_service.dart';
-import '../services/firebase_messaging_handler.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final AlertPayload? initialAlert;
+  const HomePage({super.key, this.initialAlert});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  final List<Color> _vegetableColors = [
-    const Color(0xFFE74C3C),
-    const Color(0xFF9B59B6),
-    const Color(0xFF27AE60),
-    const Color(0xFF2ECC71),
-  ];
+// ← CHANGED: add WidgetsBindingObserver
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
+  // ── Serre colors ──────────────────────────────────────────────────────────
+  final Map<String, Color> _serreColors = {
+    SerreId.tomate: const Color(0xFFE74C3C),
+    SerreId.tomate_cerise: const Color(0xFFC0392B),
+  };
 
-  SensorData sensorData = SensorData.initial();
-  SoilSensorData soilData = SoilSensorData.initial();
-  bool isConnected = false;
-  bool _wasConnected = false;
-  final ThresholdConfig thresholdConfig = ThresholdConfig();
-  bool alertShown = false;
-  bool _pumpLoading = false;
+  // ── Per-serre state ───────────────────────────────────────────────────────
+  final Map<String, SensorData> _sensorDataMap = {
+    SerreId.tomate: SensorData.initial(),
+    SerreId.tomate_cerise: SensorData.initial(),
+  };
+  final Map<String, SoilSensorData> _soilDataMap = {
+    SerreId.tomate: SoilSensorData.initial(),
+    SerreId.tomate_cerise: SoilSensorData.initial(),
+  };
+  final Map<String, ThresholdConfig> _thresholdMap = {
+    SerreId.tomate: ThresholdConfig(),
+    SerreId.tomate_cerise: ThresholdConfig(),
+  };
+  final Map<String, bool> _autoModeMap = {
+    SerreId.tomate: true,
+    SerreId.tomate_cerise: true,
+  };
+  final Map<String, bool> _pumpLoadingMap = {
+    SerreId.tomate: false,
+    SerreId.tomate_cerise: false,
+  };
+  final Map<String, bool> _connectedMap = {
+    SerreId.tomate: false,
+    SerreId.tomate_cerise: false,
+  };
+
   int _currentVegetableIndex = 0;
-  bool isAutoMode = true;
-  DateTime? _lastModeChange;
   bool _isListening = false;
-  String _voiceStatus = '';
   late PageController _externalPageController;
 
-  Color get _activeColor => _vegetableColors[_currentVegetableIndex];
+  AlertPayload? _activeAlert;
+  StreamSubscription<AlertPayload>? _alertSub;
 
+  String get _currentSerreId =>
+      _currentVegetableIndex == 0 ? SerreId.tomate : SerreId.tomate_cerise;
+  Color get _activeColor => _serreColors[_currentSerreId]!;
+  bool get isConnected =>
+      (_connectedMap[SerreId.tomate] ?? false) ||
+      (_connectedMap[SerreId.tomate_cerise] ?? false);
+
+  // ─────────────────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // ← CHANGED
+
     _externalPageController = PageController();
 
-    VoiceService.initialize().then((_) {
-      _startContinuousWakeWordListening();
+    if (widget.initialAlert != null) _activeAlert = widget.initialAlert;
+
+    _alertSub = NotificationRouter.onAlert.listen((payload) {
+      setState(() => _activeAlert = payload);
     });
 
-    _listenToFirebase();
-    _testFirebaseConnection();
+    for (final serreId in SerreId.all) {
+      _listenToFirebase(serreId);
+      _loadConfig(serreId);
+    }
+
+    if (_activeAlert == null) _checkLastAlertFromFirebase();
+
+    _setupVoice(); // ← CHANGED: replaces VoiceService.initialize().then(...)
+    FirebaseService.testConnection();
   }
 
-  void _testFirebaseConnection() async {
-    await FirebaseService.testConnection();
+  // ─────────────────────────────────────────────────────────────────────────
+  // LIFECYCLE — app goes background / foreground                    ← CHANGED
+  // ─────────────────────────────────────────────────────────────────────────
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden: // Flutter 3.13+
+        VoiceService.pause(); // stops mic immediately
+        if (mounted) setState(() => _isListening = false);
+        break;
+      case AppLifecycleState.resumed:
+        VoiceService.resume(); // restarts correct loop
+        break;
+      case AppLifecycleState.inactive:
+        break; // brief interruption (phone call overlay etc.) — do nothing
+    }
   }
 
-  void _listenToFirebase() {
-    FirebaseService.getSensorDataStream().listen(
+  // ─────────────────────────────────────────────────────────────────────────
+  // VOICE SETUP — called once from initState                        ← CHANGED
+  // ─────────────────────────────────────────────────────────────────────────
+  void _setupVoice() {
+    // Wire callbacks BEFORE initialize so they're ready when STT fires.
+    VoiceService.onSessionStarted = () {
+      if (!mounted) return;
+      setState(() => _isListening = true);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('🎤 Rigoula à votre écoute !'),
+        backgroundColor: _activeColor,
+        duration: const Duration(seconds: 2),
+      ));
+    };
+
+    VoiceService.onCommandReceived = (command, raw) {
+      if (!mounted) return;
+      _handleVoiceCommand(command, raw);
+    };
+
+    VoiceService.onSessionEnded = () {
+      if (!mounted) return;
+      setState(() => _isListening = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('🔇 Session vocale terminée'),
+        backgroundColor: Colors.grey,
+        duration: Duration(seconds: 2),
+      ));
+    };
+
+    VoiceService.initialize().then((_) => VoiceService.startIdleListening());
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // FIREBASE (unchanged)
+  // ─────────────────────────────────────────────────────────────────────────
+  Future<void> _checkLastAlertFromFirebase() async {
+    for (final serreId in SerreId.all) {
+      try {
+        final ref = FirebaseDatabase.instance.ref("serres/$serreId/last_alert");
+        final snapshot = await ref.get();
+        if (snapshot.exists && snapshot.value != null) {
+          final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+          final payload = AlertPayload.fromLastAlert(serreId, data);
+          final ageSeconds =
+              DateTime.now().millisecondsSinceEpoch ~/ 1000 - payload.timestamp;
+          if (ageSeconds < 3600 && payload.alertType != AlertType.unknown) {
+            if (mounted) setState(() => _activeAlert = payload);
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _loadConfig(String serreId) async {
+    final config = await FirebaseService.loadConfig(serreId);
+    if (config != null && mounted) {
+      setState(() {
+        _thresholdMap[serreId] = ThresholdConfig(
+          tempMin: config['temp_min']!,
+          tempMax: config['temp_max']!,
+          humMin: config['hum_min']!,
+          humMax: config['hum_max']!,
+        );
+      });
+    }
+  }
+
+  void _listenToFirebase(String serreId) {
+    FirebaseService.getSensorDataStream(serreId).listen(
       (event) {
         final data = FirebaseService.parseSensorData(event.snapshot);
-        if (data != null) {
+        if (data != null && mounted) {
           setState(() {
-            if (!isConnected && _wasConnected) {
-              NotificationService.showConnectionRestoredNotification();
-            }
-            sensorData = SensorData.fromMap(data);
-            soilData = SoilSensorData(
-              moisture: data['soil_percent'] ?? 45.0,
+            _sensorDataMap[serreId] = SensorData.fromMap(data);
+            _soilDataMap[serreId] = SoilSensorData(
+              moisture: (data['soil_percent'] as num?)?.toDouble() ?? 45.0,
               isPumpActive: data['pump']?.toString() == 'ON',
             );
-            if (_lastModeChange == null) {
-              isAutoMode = (data['mode']?.toString() ?? 'AUTO') == 'AUTO';
-            }
-            isConnected = true;
-            _wasConnected = true;
+            _autoModeMap[serreId] ??=
+                (data['mode']?.toString() ?? 'AUTO') == 'AUTO';
+            _connectedMap[serreId] = true;
           });
-          FirebaseService.saveToHistory(data);
-          _checkAlert();
+          FirebaseService.saveToHistory(serreId, data);
         }
       },
-      onError: (error) {
-        setState(() {
-          if (isConnected) NotificationService.showConnectionLostNotification();
-          isConnected = false;
-        });
+      onError: (_) {
+        if (mounted) setState(() => _connectedMap[serreId] = false);
       },
     );
   }
 
-  // ==================== WAKE WORD CONTINU (mains-libres) ====================
-  void _startContinuousWakeWordListening() {
-    VoiceService.startContinuousListening(
-      onWakeWord: (text) {
-        setState(() => _isListening = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('🎤 Je vous écoute ! Parlez maintenant'),
-            backgroundColor: _activeColor,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        _startCommandListeningSession();
-      },
-      onCommand:  (_) {},
-    );
-  }
-
-  void _startCommandListeningSession() {
-  // === CORRECTION IMPORTANTE ===
-  // On arrête d'abord l'écoute continue (wake word)
-  VoiceService.stopContinuousListening();
-
-  setState(() => _isListening = true);
-
-  VoiceService.startListening(
-    onResult: (commandText) {
-      setState(() => _isListening = false);
-
-      final lower = commandText.toLowerCase().trim();
-
-      // Commandes pour terminer la session
-      if (lower.contains('arrête') ||
-          lower.contains('stop') ||
-          lower.contains('fin') ||
-          lower.contains('merci rigoula') ||
-          lower.contains('c\'est bon') ||
-          lower.contains('ça suffit')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Session terminée'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Future.delayed(const Duration(milliseconds: 600),
-            _startContinuousWakeWordListening);
-        return;
-      }
-
-      _handleVoiceCommand(commandText);
-
-      // On redémarre l'écoute continue après la commande
-      Future.delayed(const Duration(milliseconds: 800),
-          _startContinuousWakeWordListening);
-    },
-  );
-
-  // Timeout de sécurité (12 secondes max pour parler)
-  Future.delayed(const Duration(seconds: 12), () {
-    if (_isListening && mounted) {
-      setState(() => _isListening = false);
-      VoiceService.stopListening();
-      _startContinuousWakeWordListening();
-    }
-  });
-}
-  void _checkAlert() {
-    final bool tempOut = !thresholdConfig.isTemperatureInRange(sensorData.temperature);
-    final bool humOut = !thresholdConfig.isHumidityInRange(sensorData.humidity);
-    final bool outOfRange = tempOut || humOut;
-
-    if (outOfRange && !alertShown) {
-      setState(() => alertShown = true);
-      List<String> alerts = [];
-      if (tempOut) {
-        alerts.add('🌡️ Température: ${sensorData.temperature.toStringAsFixed(1)}°C');
-        NotificationService.showTemperatureAlert(
-          temperature: sensorData.temperature,
-          min: thresholdConfig.tempMin,
-          max: thresholdConfig.tempMax,
-        );
-      }
-      if (humOut) {
-        alerts.add('💧 Humidité: ${sensorData.humidity.toStringAsFixed(1)}%');
-        NotificationService.showHumidityAlert(
-          humidity: sensorData.humidity,
-          min: thresholdConfig.humMin,
-          max: thresholdConfig.humMax,
-        );
-      }
-      if (alerts.length > 1) {
-        NotificationService.showMultipleAlertsNotification(alerts: alerts);
-      }
-    } else if (!outOfRange && alertShown) {
-      setState(() => alertShown = false);
-    }
-  }
-
-  void _toggleMode() async {
-    final newMode = isAutoMode ? "MANUEL" : "AUTO";
-    final success = await FirebaseService.setMode(newMode);
+  // ─────────────────────────────────────────────────────────────────────────
+  // PUMP / MODE (unchanged logic)
+  // ─────────────────────────────────────────────────────────────────────────
+  void _toggleMode(String serreId) async {
+    final currentAuto = _autoModeMap[serreId] ?? true;
+    final newMode = currentAuto ? "MANUEL" : "AUTO";
+    final success = await FirebaseService.setMode(serreId, newMode);
     if (!mounted) return;
     if (success) {
-      setState(() {
-        isAutoMode = !isAutoMode;
-        _lastModeChange = isAutoMode ? null : DateTime.now();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isAutoMode ? '🤖 Mode AUTO activé' : '🕹️ Mode MANUEL activé'),
-          backgroundColor: isAutoMode ? Colors.blue : Colors.orange,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      setState(() => _autoModeMap[serreId] = !currentAuto);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(!currentAuto ? '🤖 Mode AUTO activé' : '🕹️ Mode MANUEL activé'),
+        backgroundColor: !currentAuto ? Colors.blue : Colors.orange,
+        duration: const Duration(seconds: 2),
+      ));
     }
   }
 
-  void _togglePump() async {
-    if (_pumpLoading || isAutoMode) return;
-    setState(() => _pumpLoading = true);
-    final newState = !soilData.isPumpActive;
-    final success = await FirebaseService.setPumpCommand(newState);
+  void _togglePump(String serreId) async {
+    if ((_pumpLoadingMap[serreId] ?? false) || (_autoModeMap[serreId] ?? true)) return;
+    setState(() => _pumpLoadingMap[serreId] = true);
+
+    final currentSoil = _soilDataMap[serreId] ?? SoilSensorData.initial();
+    final newState = !currentSoil.isPumpActive;
+    final success = await FirebaseService.setPumpCommand(serreId, newState);
+
     if (!mounted) return;
     if (success) {
-      if (newState) FirebaseService.incrementPompeCount();
+      if (newState) FirebaseService.incrementPompeCount(serreId);
       NotificationService.showPumpNotification(isPumpActive: newState);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(newState ? '💧 Pompe ON' : '⛔ Pompe OFF'),
-          backgroundColor: newState ? Colors.green : Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(newState ? '💧 Pompe ON' : '⛔ Pompe OFF'),
+        backgroundColor: newState ? Colors.green : Colors.red,
+        duration: const Duration(seconds: 2),
+      ));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Erreur envoi commande'), backgroundColor: Colors.orange),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('❌ Erreur envoi commande'),
+        backgroundColor: Colors.orange,
+      ));
     }
-    setState(() => _pumpLoading = false);
+    setState(() => _pumpLoadingMap[serreId] = false);
   }
 
-  void _openSettings() async {
-    await VoiceService.stopContinuousListening();
+  // ─────────────────────────────────────────────────────────────────────────
+  // NAVIGATION — updated to use new VoiceService API              ← CHANGED
+  // ─────────────────────────────────────────────────────────────────────────
+  void _openSettings(String serreId) async {
+    await VoiceService.stopSession(); // ← CHANGED
     if (!mounted) return;
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SettingsPage(
-          currentConfig: thresholdConfig,
+        builder: (_) => SettingsPage(
+          serreId: serreId,
+          currentConfig: _thresholdMap[serreId]!,
           onConfigSaved: (newConfig) {
-            setState(() {
-              thresholdConfig.tempMin = newConfig.tempMin;
-              thresholdConfig.tempMax = newConfig.tempMax;
-              thresholdConfig.humMin = newConfig.humMin;
-              thresholdConfig.humMax = newConfig.humMax;
-            });
-            _checkAlert();
+            setState(() => _thresholdMap[serreId] = newConfig);
           },
         ),
       ),
     );
-    if (mounted) _startContinuousWakeWordListening();
+    if (mounted) VoiceService.startIdleListening(); // ← CHANGED
   }
 
-  Future<void> _handleVoiceCommand(String text) async {
-    final command = VoiceService.parseCommand(text);
+  void _openHistorique(String serreId) async {
+    await VoiceService.stopSession(); // ← CHANGED
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => HistoriquePage(serreId: serreId)),
+    );
+    if (mounted) VoiceService.startIdleListening(); // ← CHANGED
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // VOICE COMMAND HANDLER — new signature                          ← CHANGED
+  // ─────────────────────────────────────────────────────────────────────────
+  Future<void> _handleVoiceCommand(VoiceCommand command, String raw) async {
+    // ← CHANGED: command already parsed by VoiceService, no need to re-parse
     switch (command) {
       case VoiceCommand.pumpOn:
-        if (!isAutoMode) _togglePump();
+        if (!(_autoModeMap[_currentSerreId] ?? true)) _togglePump(_currentSerreId);
         _showVoiceSnack('💧 Pompe activée');
         break;
       case VoiceCommand.pumpOff:
-        if (!isAutoMode) _togglePump();
+        if (!(_autoModeMap[_currentSerreId] ?? true)) _togglePump(_currentSerreId);
         _showVoiceSnack('⛔ Pompe désactivée');
         break;
       case VoiceCommand.modeAuto:
-        if (!isAutoMode) _toggleMode();
+        if (!(_autoModeMap[_currentSerreId] ?? true)) _toggleMode(_currentSerreId);
         _showVoiceSnack('🤖 Mode AUTO');
         break;
       case VoiceCommand.modeManuel:
-        if (isAutoMode) _toggleMode();
+        if (_autoModeMap[_currentSerreId] ?? true) _toggleMode(_currentSerreId);
         _showVoiceSnack('🕹️ Mode MANUEL');
         break;
       case VoiceCommand.openHistorique:
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        await VoiceService.stopContinuousListening();
-        await Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoriquePage()));
-        if (mounted) _startContinuousWakeWordListening();
+        _openHistorique(_currentSerreId);
         break;
       case VoiceCommand.openSettings:
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        _openSettings();
+        _openSettings(_currentSerreId);
         break;
       case VoiceCommand.slideTomate:
-        _externalPageController.animateToPage(0, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+        _externalPageController.animateToPage(0,
+            duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
         _showVoiceSnack('🍅 Tomate');
         break;
-      
-      case VoiceCommand.slideAubergine:
-        _externalPageController.animateToPage(1, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-        _showVoiceSnack('🍆 Aubergine');
-        break;
-      case VoiceCommand.slidePoivron:
-        _externalPageController.animateToPage(2, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-        _showVoiceSnack('🫑 Poivron');
-        break;
-      case VoiceCommand.slideConcombre:
-        _externalPageController.animateToPage(3, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-        _showVoiceSnack('🥒 Concombre');
+      case VoiceCommand.slidecerise:
+        _externalPageController.animateToPage(1,
+            duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+        _showVoiceSnack('🍒 Tomate Cerise');
         break;
       case VoiceCommand.slideNext:
-        final next = (_currentVegetableIndex + 1) % 4;
-        _externalPageController.animateToPage(next, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+        _externalPageController.animateToPage(
+            (_currentVegetableIndex + 1) % 2,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut);
         break;
       case VoiceCommand.slidePrev:
-        final prev = (_currentVegetableIndex - 1 + 4) % 4;
-        _externalPageController.animateToPage(prev, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+        _externalPageController.animateToPage(
+            (_currentVegetableIndex - 1 + 2) % 2,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut);
         break;
+      
       case VoiceCommand.returnHome:
         Navigator.of(context).popUntil((route) => route.isFirst);
-        _showVoiceSnack('🏠 Retour à la page d\'accueil');
-      break;
+        _showVoiceSnack('🏠 Retour accueil');
+        break;
       case VoiceCommand.unknown:
-        _showVoiceSnack('❓ Non reconnue : "$text"');
+        _showVoiceSnack('❓ Non reconnue : "$raw"');
         break;
     }
   }
 
   void _showVoiceSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 2), backgroundColor: _activeColor),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      duration: const Duration(seconds: 2),
+      backgroundColor: _activeColor,
+    ));
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
   @override
   void dispose() {
-    VoiceService.stopContinuousListening();
+    WidgetsBinding.instance.removeObserver(this); // ← CHANGED
+    _alertSub?.cancel();
+    VoiceService.pause(); // ← CHANGED: stops mic without clearing session
     _externalPageController.dispose();
     super.dispose();
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // BUILD (unchanged)
+  // ─────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
@@ -370,15 +590,19 @@ class _HomePageState extends State<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text("Rigoula", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2E7D32))),
-                    const Text("Smart Farming", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text("Rigoula",
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF2E7D32))),
+                    const Text("Smart Farming",
+                        style: TextStyle(fontSize: 10, color: Colors.grey)),
                   ],
                 ),
               ),
             ],
           ),
           actions: [
-            // Indicateur discret quand Rigoula écoute
             if (_isListening)
               Container(
                 margin: const EdgeInsets.only(right: 8),
@@ -391,69 +615,37 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Icon(Icons.mic, color: Colors.red, size: 18),
                     SizedBox(width: 4),
-                    Text("ÉCOUTE", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red)),
+                    Text("ÉCOUTE",
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red)),
                   ],
                 ),
               ),
-
-            // Bouton AUTO/MAN (inchangé)
-            GestureDetector(
-              onTap: _toggleMode,
-              child: Container(
-                margin: const EdgeInsets.only(right: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _activeColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _activeColor, width: 1.5),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(isAutoMode ? Icons.smart_toy : Icons.pan_tool, size: 12, color: _activeColor),
-                    const SizedBox(width: 3),
-                    Text(isAutoMode ? "AUTO" : "MAN", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: _activeColor)),
-                  ],
-                ),
-              ),
-            ),
-
-            // Bouton Historique (restauré)
-            IconButton(
-              icon: Icon(Icons.history, color: _activeColor, size: 22),
-              onPressed: () async {
-                await VoiceService.stopContinuousListening();
-                if (!mounted) return;
-                await Navigator.push(context, MaterialPageRoute(builder: (_) => const HistoriquePage()));
-                if (mounted) _startContinuousWakeWordListening();
-              },
-              tooltip: 'Historique',
-            ),
-
-            // Bouton Paramètres (restauré)
-            IconButton(
-              icon: Icon(Icons.settings, color: _activeColor, size: 22),
-              onPressed: _openSettings,
-              tooltip: 'Paramètres',
-            ),
-
-            // Statut ONLINE (inchangé)
             Container(
               margin: const EdgeInsets.only(right: 8),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               decoration: BoxDecoration(
                 color: isConnected ? Colors.green.shade50 : Colors.red.shade50,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isConnected ? Colors.green : Colors.red, width: 1.5),
+                border: Border.all(
+                    color: isConnected ? Colors.green : Colors.red, width: 1.5),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(width: 6, height: 6, decoration: BoxDecoration(color: isConnected ? Colors.green : Colors.red, shape: BoxShape.circle)),
-                  const SizedBox(width: 3),
-                  Text(isConnected ? "ON" : "OFF", style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isConnected ? Colors.green : Colors.red)),
-                ],
-              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                        color: isConnected ? Colors.green : Colors.red,
+                        shape: BoxShape.circle)),
+                const SizedBox(width: 3),
+                Text(isConnected ? "ON" : "OFF",
+                    style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: isConnected ? Colors.green : Colors.red)),
+              ]),
             ),
           ],
         ),
@@ -461,60 +653,27 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.all(12),
           child: Column(
             children: [
-              _buildModeBanner(),
-              const SizedBox(height: 8),
               Expanded(
                 child: VegetableSlider(
-                  sensorData: sensorData,
-                  soilData: soilData,
-                  thresholdConfig: thresholdConfig,
-                  onPumpToggle: (!isAutoMode && !_pumpLoading) ? _togglePump : () {},
-                  onPageChanged: (index) => setState(() => _currentVegetableIndex = index),
-                  isAutoMode: isAutoMode,
+                  sensorDataMap: _sensorDataMap,
+                  soilDataMap: _soilDataMap,
+                  thresholdConfigMap: _thresholdMap,
+                  autoModeMap: _autoModeMap,
+                  pumpLoadingMap: _pumpLoadingMap,
+                  onPumpToggle: _togglePump,
+                  onModeToggle: _toggleMode,
+                  onOpenSettings: _openSettings,
+                  onOpenHistorique: _openHistorique,
+                  onPageChanged: (index) =>
+                      setState(() => _currentVegetableIndex = index),
                   externalController: _externalPageController,
+                  activeAlert: _activeAlert,
+                  onAlertDismissed: () => setState(() => _activeAlert = null),
                 ),
               ),
-              if (alertShown) ...[
-                const SizedBox(height: 12),
-                const AlertBanner(),
-              ],
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildModeBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: _activeColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _activeColor.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(isAutoMode ? Icons.smart_toy : Icons.pan_tool, color: _activeColor, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              isAutoMode ? 'Mode AUTO — ESP32 gère la pompe' : 'Mode MANUEL — Vous contrôlez la pompe',
-              style: TextStyle(fontSize: 12, color: _activeColor, fontWeight: FontWeight.w500),
-            ),
-          ),
-          Transform.scale(
-            scale: 0.8,
-            child: Switch(
-              value: !isAutoMode,
-              onChanged: (_) => _toggleMode(),
-              activeColor: Colors.orange,
-              inactiveThumbColor: _activeColor,
-              inactiveTrackColor: _activeColor.withOpacity(0.2),
-            ),
-          ),
-        ],
       ),
     );
   }
