@@ -1,190 +1,3 @@
-// ══════════════════════════════════════════════════════════════════════════════
-// PATCH for home_page.dart
-// Replace ONLY the sections marked ← CHANGED.
-// Everything else (Firebase, pump, settings, etc.) stays identical.
-// ══════════════════════════════════════════════════════════════════════════════
-
-// 1. Add WidgetsBindingObserver to the State class declaration:
-//
-//   class _HomePageState extends State<HomePage>
-//       with WidgetsObserverMixin            // ← CHANGED (see mixin below)
-//
-// Because Dart doesn't allow multiple `with` clauses mixing State mixins
-// easily, the cleanest pattern is to implement WidgetsBindingObserver directly:
-
-/*
-──────────────────────────────────────────────────────────────────────────────
-STEP A — change the class signature
-──────────────────────────────────────────────────────────────────────────────
-BEFORE:
-  class _HomePageState extends State<HomePage> {
-
-AFTER:
-  class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
-*/
-
-/*
-──────────────────────────────────────────────────────────────────────────────
-STEP B — register / unregister the observer in initState / dispose
-──────────────────────────────────────────────────────────────────────────────
-In initState(), ADD at the very top:
-  WidgetsBinding.instance.addObserver(this);
-
-In dispose(), ADD before super.dispose():
-  WidgetsBinding.instance.removeObserver(this);
-*/
-
-/*
-──────────────────────────────────────────────────────────────────────────────
-STEP C — override didChangeAppLifecycleState
-──────────────────────────────────────────────────────────────────────────────
-Add this method to _HomePageState:
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    switch (state) {
-      case AppLifecycleState.paused:
-      case AppLifecycleState.detached:
-      case AppLifecycleState.hidden:        // Flutter 3.13+
-        VoiceService.pause();               // stops mic immediately
-        break;
-      case AppLifecycleState.resumed:
-        VoiceService.resume();              // restarts correct loop
-        break;
-      case AppLifecycleState.inactive:
-        break;                              // short interruption — do nothing
-    }
-  }
-*/
-
-/*
-──────────────────────────────────────────────────────────────────────────────
-STEP D — replace _startContinuousWakeWordListening() and related voice methods
-──────────────────────────────────────────────────────────────────────────────
-Remove the old methods:
-  • _startContinuousWakeWordListening()
-  • _startCommandListeningSession()
-
-Replace with:
-*/
-
-// ── Voice setup ──────────────────────────────────────────────────────────────
-//
-//   void _setupVoice() {
-//     // Assign callbacks BEFORE calling initialize so they are ready
-//     // when the engine fires its first status event.
-//     VoiceService.onSessionStarted = () {
-//       if (!mounted) return;
-//       setState(() => _isListening = true);
-//       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-//         content: const Text('🎤 Rigoula à votre écoute !'),
-//         backgroundColor: _activeColor,
-//         duration: const Duration(seconds: 2),
-//       ));
-//     };
-//
-//     VoiceService.onCommandReceived = (command, raw) {
-//       if (!mounted) return;
-//       _handleVoiceCommand(command, raw);
-//     };
-//
-//     VoiceService.onSessionEnded = () {
-//       if (!mounted) return;
-//       setState(() => _isListening = false);
-//       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-//         content: Text('🔇 Session vocale terminée'),
-//         backgroundColor: Colors.grey,
-//         duration: Duration(seconds: 2),
-//       ));
-//     };
-//
-//     VoiceService.initialize().then((_) => VoiceService.startIdleListening());
-//   }
-
-/*
-──────────────────────────────────────────────────────────────────────────────
-STEP E — update _handleVoiceCommand signature
-──────────────────────────────────────────────────────────────────────────────
-BEFORE:
-  Future<void> _handleVoiceCommand(String text) async {
-    final command = VoiceService.parseCommand(text);
-    switch (command) { ... }
-  }
-
-AFTER:
-  Future<void> _handleVoiceCommand(VoiceCommand command, String raw) async {
-    switch (command) { ... }   // same body, no parseCommand call needed
-  }
-*/
-
-/*
-──────────────────────────────────────────────────────────────────────────────
-STEP F — update _openSettings / _openHistorique
-──────────────────────────────────────────────────────────────────────────────
-BEFORE:
-  await VoiceService.stopContinuousListening();
-  ...
-  if (mounted) _startContinuousWakeWordListening();
-
-AFTER:
-  await VoiceService.stopSession();
-  ...
-  if (mounted) VoiceService.startIdleListening();
-*/
-
-/*
-──────────────────────────────────────────────────────────────────────────────
-STEP G — update dispose()
-──────────────────────────────────────────────────────────────────────────────
-BEFORE:
-  VoiceService.stopContinuousListening();
-
-AFTER:
-  VoiceService.pause();   // stops mic without clearing session flag
-*/
-
-// ══════════════════════════════════════════════════════════════════════════════
-// COMPLETE MINIMAL home_page.dart DIFF (copy-paste ready)
-// ══════════════════════════════════════════════════════════════════════════════
-//
-// Only the voice-related lines change; everything else is identical to your
-// original file.  Lines marked [+] are new; lines marked [-] are removed.
-//
-// class _HomePageState extends State<HomePage> {          [-]
-// class _HomePageState extends State<HomePage>            [+]
-//     with WidgetsBindingObserver {                       [+]
-//
-// initState() {
-//   [+] WidgetsBinding.instance.addObserver(this);
-//   ...
-//   [-] VoiceService.initialize().then((_) => _startContinuousWakeWordListening());
-//   [+] _setupVoice();
-// }
-//
-// dispose() {
-//   [-] VoiceService.stopContinuousListening();
-//   [+] WidgetsBinding.instance.removeObserver(this);
-//   [+] VoiceService.pause();
-//   ...
-// }
-//
-// [+] @override
-// [+] void didChangeAppLifecycleState(AppLifecycleState state) { ... }
-//
-// [+] void _setupVoice() { ... }
-//
-// [-] void _startContinuousWakeWordListening() { ... }
-// [-] void _startCommandListeningSession()    { ... }
-//
-// [-] Future<void> _handleVoiceCommand(String text) async {
-// [-]   final command = VoiceService.parseCommand(text);
-// [+] Future<void> _handleVoiceCommand(VoiceCommand command, String raw) async {
-//
-// ══════════════════════════════════════════════════════════════════════════════
-// FULL PATCHED home_page.dart (voice sections only, rest unchanged)
-// ══════════════════════════════════════════════════════════════════════════════
-
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -195,8 +8,8 @@ import '../models/sensor_data.dart';
 import '../models/soil_sensor_data.dart';
 import '../models/threshold_config.dart';
 import '../models/alert_payload.dart';
+import '../models/hydraulic_data.dart';
 import '../widgets/vegetable_slider.dart';
-import '../widgets/alert_banner.dart';
 import 'settings_page.dart';
 import 'historique_page.dart';
 import '../services/voice_service.dart';
@@ -209,15 +22,12 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-// ← CHANGED: add WidgetsBindingObserver
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
-  // ── Serre colors ──────────────────────────────────────────────────────────
   final Map<String, Color> _serreColors = {
     SerreId.tomate: const Color(0xFFE74C3C),
     SerreId.tomate_cerise: const Color(0xFFC0392B),
   };
 
-  // ── Per-serre state ───────────────────────────────────────────────────────
   final Map<String, SensorData> _sensorDataMap = {
     SerreId.tomate: SensorData.initial(),
     SerreId.tomate_cerise: SensorData.initial(),
@@ -234,6 +44,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     SerreId.tomate: true,
     SerreId.tomate_cerise: true,
   };
+  // EV state per serre
+  final Map<String, bool> _evStateMap = {
+    SerreId.tomate: false,
+    SerreId.tomate_cerise: false,
+  };
+  final Map<String, bool> _evLoadingMap = {
+    SerreId.tomate: false,
+    SerreId.tomate_cerise: false,
+  };
   final Map<String, bool> _pumpLoadingMap = {
     SerreId.tomate: false,
     SerreId.tomate_cerise: false,
@@ -243,10 +62,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     SerreId.tomate_cerise: false,
   };
 
+  // Hydraulic (pompe principale)
+  HydraulicData _hydraulicData = HydraulicData.initial();
+  bool _mainPumpLoading = false;
+  bool _mainModeLoading = false;
+  StreamSubscription<DatabaseEvent>? _hydResSub;
+  StreamSubscription<DatabaseEvent>? _hydPumpSub;
+  Map<dynamic, dynamic>? _hydResSnap;
+  Map<dynamic, dynamic>? _hydPumpSnap;
+
   int _currentVegetableIndex = 0;
   bool _isListening = false;
   late PageController _externalPageController;
-
   AlertPayload? _activeAlert;
   StreamSubscription<AlertPayload>? _alertSub;
 
@@ -257,57 +84,42 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       (_connectedMap[SerreId.tomate] ?? false) ||
       (_connectedMap[SerreId.tomate_cerise] ?? false);
 
-  // ─────────────────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this); // ← CHANGED
-
+    WidgetsBinding.instance.addObserver(this);
     _externalPageController = PageController();
-
     if (widget.initialAlert != null) _activeAlert = widget.initialAlert;
-
-    _alertSub = NotificationRouter.onAlert.listen((payload) {
-      setState(() => _activeAlert = payload);
-    });
-
-    for (final serreId in SerreId.all) {
-      _listenToFirebase(serreId);
-      _loadConfig(serreId);
+    _alertSub = NotificationRouter.onAlert.listen((p) => setState(() => _activeAlert = p));
+    for (final id in SerreId.all) {
+      _listenToFirebase(id);
+      _loadConfig(id);
     }
-
+    _listenHydraulic();
     if (_activeAlert == null) _checkLastAlertFromFirebase();
-
-    _setupVoice(); // ← CHANGED: replaces VoiceService.initialize().then(...)
+    _setupVoice();
     FirebaseService.testConnection();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // LIFECYCLE — app goes background / foreground                    ← CHANGED
-  // ─────────────────────────────────────────────────────────────────────────
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
-      case AppLifecycleState.hidden: // Flutter 3.13+
-        VoiceService.pause(); // stops mic immediately
+      case AppLifecycleState.hidden:
+        VoiceService.pause();
         if (mounted) setState(() => _isListening = false);
         break;
       case AppLifecycleState.resumed:
-        VoiceService.resume(); // restarts correct loop
+        VoiceService.resume();
         break;
       case AppLifecycleState.inactive:
-        break; // brief interruption (phone call overlay etc.) — do nothing
+        break;
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // VOICE SETUP — called once from initState                        ← CHANGED
-  // ─────────────────────────────────────────────────────────────────────────
   void _setupVoice() {
-    // Wire callbacks BEFORE initialize so they're ready when STT fires.
     VoiceService.onSessionStarted = () {
       if (!mounted) return;
       setState(() => _isListening = true);
@@ -317,12 +129,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         duration: const Duration(seconds: 2),
       ));
     };
-
-    VoiceService.onCommandReceived = (command, raw) {
+    VoiceService.onCommandReceived = (cmd, raw) {
       if (!mounted) return;
-      _handleVoiceCommand(command, raw);
+      _handleVoiceCommand(cmd, raw);
     };
-
     VoiceService.onSessionEnded = () {
       if (!mounted) return;
       setState(() => _isListening = false);
@@ -332,24 +142,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         duration: Duration(seconds: 2),
       ));
     };
-
     VoiceService.initialize().then((_) => VoiceService.startIdleListening());
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // FIREBASE (unchanged)
-  // ─────────────────────────────────────────────────────────────────────────
   Future<void> _checkLastAlertFromFirebase() async {
     for (final serreId in SerreId.all) {
       try {
-        final ref = FirebaseDatabase.instance.ref("serres/$serreId/last_alert");
-        final snapshot = await ref.get();
-        if (snapshot.exists && snapshot.value != null) {
-          final data = Map<dynamic, dynamic>.from(snapshot.value as Map);
+        final snap = await FirebaseDatabase.instance
+            .ref("serres/$serreId/last_alert")
+            .get();
+        if (snap.exists && snap.value != null) {
+          final data = Map<dynamic, dynamic>.from(snap.value as Map);
           final payload = AlertPayload.fromLastAlert(serreId, data);
-          final ageSeconds =
-              DateTime.now().millisecondsSinceEpoch ~/ 1000 - payload.timestamp;
-          if (ageSeconds < 3600 && payload.alertType != AlertType.unknown) {
+          final age = DateTime.now().millisecondsSinceEpoch ~/ 1000 - payload.timestamp;
+          if (age < 3600 && payload.alertType != AlertType.unknown) {
             if (mounted) setState(() => _activeAlert = payload);
             break;
           }
@@ -383,8 +189,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               moisture: (data['soil_percent'] as num?)?.toDouble() ?? 45.0,
               isPumpActive: data['pump']?.toString() == 'ON',
             );
-            _autoModeMap[serreId] ??=
-                (data['mode']?.toString() ?? 'AUTO') == 'AUTO';
+            _autoModeMap[serreId] ??= (data['mode']?.toString() ?? 'AUTO') == 'AUTO';
+            _evStateMap[serreId] = data['ev']?.toString() == 'OPEN';
             _connectedMap[serreId] = true;
           });
           FirebaseService.saveToHistory(serreId, data);
@@ -396,15 +202,71 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // PUMP / MODE (unchanged logic)
-  // ─────────────────────────────────────────────────────────────────────────
+  void _listenHydraulic() {
+    void rebuild() {
+      if (!mounted) return;
+      setState(() => _hydraulicData =
+          HydraulicData.fromFirebase(_hydResSnap, _hydPumpSnap));
+    }
+
+    _hydResSub = FirebaseService.getHydraulicReservoirStream().listen((e) {
+      _hydResSnap = e.snapshot.value != null
+          ? Map<dynamic, dynamic>.from(e.snapshot.value as Map)
+          : null;
+      rebuild();
+    });
+    _hydPumpSub = FirebaseService.getHydraulicPumpStream().listen((e) {
+      _hydPumpSnap = e.snapshot.value != null
+          ? Map<dynamic, dynamic>.from(e.snapshot.value as Map)
+          : null;
+      rebuild();
+    });
+  }
+
+  // ── EV toggle ──────────────────────────────────────────────────────────────
+  Future<void> _toggleEV(String serreId) async {
+    if (_evLoadingMap[serreId] ?? false) return;
+    if (_autoModeMap[serreId] ?? true) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('🤖 Mode AUTO — passez en MANUEL pour contrôler l\'EV'),
+        backgroundColor: Colors.blue,
+        duration: Duration(seconds: 2),
+      ));
+      return;
+    }
+    setState(() => _evLoadingMap[serreId] = true);
+    final open = !(_evStateMap[serreId] ?? false);
+    final ok = await FirebaseService.setEVCommand(serreId, open);
+    if (!mounted) return;
+    setState(() {
+      _evLoadingMap[serreId] = false;
+      if (ok) _evStateMap[serreId] = open;
+    });
+    if (ok) {
+      if (open) FirebaseService.incrementEVOpenCount(serreId);
+      final label = serreId == SerreId.tomate ? 'Tomate' : 'Tomate Cerise';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(open
+            ? '💧 EV $label OUVERTE — irrigation démarrée'
+            : '🔒 EV $label FERMÉE'),
+        backgroundColor: open ? Colors.blue : Colors.grey.shade700,
+        duration: const Duration(seconds: 2),
+      ));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('❌ Erreur commande électrovanne'),
+        backgroundColor: Colors.orange,
+      ));
+    }
+  }
+
+  // ── Mode toggle ────────────────────────────────────────────────────────────
   void _toggleMode(String serreId) async {
     final currentAuto = _autoModeMap[serreId] ?? true;
     final newMode = currentAuto ? "MANUEL" : "AUTO";
-    final success = await FirebaseService.setMode(serreId, newMode);
+    final ok = await FirebaseService.setMode(serreId, newMode);
     if (!mounted) return;
-    if (success) {
+    if (ok) {
       setState(() => _autoModeMap[serreId] = !currentAuto);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(!currentAuto ? '🤖 Mode AUTO activé' : '🕹️ Mode MANUEL activé'),
@@ -414,76 +276,88 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  void _togglePump(String serreId) async {
-    if ((_pumpLoadingMap[serreId] ?? false) || (_autoModeMap[serreId] ?? true)) return;
-    setState(() => _pumpLoadingMap[serreId] = true);
-
-    final currentSoil = _soilDataMap[serreId] ?? SoilSensorData.initial();
-    final newState = !currentSoil.isPumpActive;
-    final success = await FirebaseService.setPumpCommand(serreId, newState);
-
-    if (!mounted) return;
-    if (success) {
-      if (newState) FirebaseService.incrementPompeCount(serreId);
-      NotificationService.showPumpNotification(isPumpActive: newState);
+  // ── Main pump toggle ───────────────────────────────────────────────────────
+  Future<void> _toggleMainPump() async {
+    if (_mainPumpLoading) return;
+    if (_hydraulicData.mode == HydraulicMode.auto) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('🤖 Mode AUTO — passez en MANUEL pour contrôler la pompe'),
+        backgroundColor: Colors.blue,
+        duration: Duration(seconds: 2),
+      ));
+      return;
+    }
+    if (!_hydraulicData.canRun && _hydraulicData.pumpState == PumpState.off) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(newState ? '💧 Pompe ON' : '⛔ Pompe OFF'),
-        backgroundColor: newState ? Colors.green : Colors.red,
+        content: const Text('⚠️ Pompe bloquée — niveau d\'eau insuffisant'),
+        backgroundColor: Colors.red.shade700,
         duration: const Duration(seconds: 2),
       ));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('❌ Erreur envoi commande'),
-        backgroundColor: Colors.orange,
-      ));
+      return;
     }
-    setState(() => _pumpLoadingMap[serreId] = false);
+    setState(() => _mainPumpLoading = true);
+    final turnOn = _hydraulicData.pumpState == PumpState.off;
+    final ok = await FirebaseService.setHydraulicPumpCmd(turnOn);
+    if (!mounted) return;
+    setState(() => _mainPumpLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? (turnOn ? '💧 Pompe principale ON' : '⛔ Pompe principale OFF')
+          : '❌ Erreur commande pompe'),
+      backgroundColor: ok ? (turnOn ? Colors.green : Colors.red) : Colors.orange,
+      duration: const Duration(seconds: 2),
+    ));
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // NAVIGATION — updated to use new VoiceService API              ← CHANGED
-  // ─────────────────────────────────────────────────────────────────────────
-  void _openSettings(String serreId) async {
-    await VoiceService.stopSession(); // ← CHANGED
+  Future<void> _toggleMainMode() async {
+    if (_mainModeLoading) return;
+    setState(() => _mainModeLoading = true);
+    final newMode = _hydraulicData.mode == HydraulicMode.auto ? 'MANUEL' : 'AUTO';
+    final ok = await FirebaseService.setHydraulicMode(newMode);
     if (!mounted) return;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SettingsPage(
-          serreId: serreId,
-          currentConfig: _thresholdMap[serreId]!,
-          onConfigSaved: (newConfig) {
-            setState(() => _thresholdMap[serreId] = newConfig);
-          },
-        ),
+    setState(() => _mainModeLoading = false);
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(newMode == 'AUTO'
+            ? '🤖 Pompe principale — Mode AUTO'
+            : '🕹️ Pompe principale — Mode MANUEL'),
+        backgroundColor: newMode == 'AUTO' ? Colors.blue : Colors.orange,
+        duration: const Duration(seconds: 2),
+      ));
+    }
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  void _openSettings(String serreId) async {
+    await VoiceService.stopSession();
+    if (!mounted) return;
+    await Navigator.push(context, MaterialPageRoute(
+      builder: (_) => SettingsPage(
+        serreId: serreId,
+        currentConfig: _thresholdMap[serreId]!,
+        onConfigSaved: (c) => setState(() => _thresholdMap[serreId] = c),
       ),
-    );
-    if (mounted) VoiceService.startIdleListening(); // ← CHANGED
+    ));
+    if (mounted) VoiceService.startIdleListening();
   }
 
   void _openHistorique(String serreId) async {
-    await VoiceService.stopSession(); // ← CHANGED
+    await VoiceService.stopSession();
     if (!mounted) return;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => HistoriquePage(serreId: serreId)),
-    );
-    if (mounted) VoiceService.startIdleListening(); // ← CHANGED
+    await Navigator.push(context, MaterialPageRoute(
+        builder: (_) => HistoriquePage(serreId: serreId)));
+    if (mounted) VoiceService.startIdleListening();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // VOICE COMMAND HANDLER — new signature                          ← CHANGED
-  // ─────────────────────────────────────────────────────────────────────────
   Future<void> _handleVoiceCommand(VoiceCommand command, String raw) async {
-    // ← CHANGED: command already parsed by VoiceService, no need to re-parse
     switch (command) {
       case VoiceCommand.pumpOn:
-        if (!(_autoModeMap[_currentSerreId] ?? true)) _togglePump(_currentSerreId);
-        _showVoiceSnack('💧 Pompe activée');
+        _toggleMainPump();
+        _showVoiceSnack('💧 Pompe principale ON');
         break;
       case VoiceCommand.pumpOff:
-        if (!(_autoModeMap[_currentSerreId] ?? true)) _togglePump(_currentSerreId);
-        _showVoiceSnack('⛔ Pompe désactivée');
+        _toggleMainPump();
+        _showVoiceSnack('⛔ Pompe principale OFF');
         break;
       case VoiceCommand.modeAuto:
         if (!(_autoModeMap[_currentSerreId] ?? true)) _toggleMode(_currentSerreId);
@@ -493,42 +367,29 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         if (_autoModeMap[_currentSerreId] ?? true) _toggleMode(_currentSerreId);
         _showVoiceSnack('🕹️ Mode MANUEL');
         break;
-      case VoiceCommand.openHistorique:
-        _openHistorique(_currentSerreId);
-        break;
-      case VoiceCommand.openSettings:
-        _openSettings(_currentSerreId);
-        break;
+      case VoiceCommand.openHistorique: _openHistorique(_currentSerreId); break;
+      case VoiceCommand.openSettings:   _openSettings(_currentSerreId);   break;
       case VoiceCommand.slideTomate:
         _externalPageController.animateToPage(0,
             duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-        _showVoiceSnack('🍅 Tomate');
-        break;
+        _showVoiceSnack('🍅 Tomate'); break;
       case VoiceCommand.slidecerise:
         _externalPageController.animateToPage(1,
             duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-        _showVoiceSnack('🍒 Tomate Cerise');
-        break;
+        _showVoiceSnack('🍒 Tomate Cerise'); break;
       case VoiceCommand.slideNext:
-        _externalPageController.animateToPage(
-            (_currentVegetableIndex + 1) % 2,
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut);
+        _externalPageController.animateToPage((_currentVegetableIndex + 1) % 2,
+            duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
         break;
       case VoiceCommand.slidePrev:
-        _externalPageController.animateToPage(
-            (_currentVegetableIndex - 1 + 2) % 2,
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut);
+        _externalPageController.animateToPage((_currentVegetableIndex - 1 + 2) % 2,
+            duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
         break;
-      
       case VoiceCommand.returnHome:
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        _showVoiceSnack('🏠 Retour accueil');
-        break;
+        Navigator.of(context).popUntil((r) => r.isFirst);
+        _showVoiceSnack('🏠 Retour accueil'); break;
       case VoiceCommand.unknown:
-        _showVoiceSnack('❓ Non reconnue : "$raw"');
-        break;
+        _showVoiceSnack('❓ Non reconnue : "$raw"'); break;
     }
   }
 
@@ -540,18 +401,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     ));
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this); // ← CHANGED
+    WidgetsBinding.instance.removeObserver(this);
     _alertSub?.cancel();
-    VoiceService.pause(); // ← CHANGED: stops mic without clearing session
+    _hydResSub?.cancel();
+    _hydPumpSub?.cancel();
+    VoiceService.pause();
     _externalPageController.dispose();
     super.dispose();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // BUILD (unchanged)
+  // BUILD
   // ─────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -573,8 +435,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                height: 36,
-                width: 36,
+                height: 36, width: 36,
                 decoration: BoxDecoration(
                   color: _activeColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
@@ -611,17 +472,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   color: Colors.red.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.mic, color: Colors.red, size: 18),
-                    SizedBox(width: 4),
-                    Text("ÉCOUTE",
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red)),
-                  ],
-                ),
+                child: const Row(children: [
+                  Icon(Icons.mic, color: Colors.red, size: 18),
+                  SizedBox(width: 4),
+                  Text("ÉCOUTE",
+                      style: TextStyle(
+                          fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red)),
+                ]),
               ),
             Container(
               margin: const EdgeInsets.only(right: 8),
@@ -634,8 +491,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Container(
-                    width: 6,
-                    height: 6,
+                    width: 6, height: 6,
                     decoration: BoxDecoration(
                         color: isConnected ? Colors.green : Colors.red,
                         shape: BoxShape.circle)),
@@ -649,10 +505,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             ),
           ],
         ),
+
         body: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: Column(
             children: [
+              // ── Slider serres ─────────────────────────────────────────────
               Expanded(
                 child: VegetableSlider(
                   sensorDataMap: _sensorDataMap,
@@ -660,17 +518,211 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   thresholdConfigMap: _thresholdMap,
                   autoModeMap: _autoModeMap,
                   pumpLoadingMap: _pumpLoadingMap,
-                  onPumpToggle: _togglePump,
+                  evStateMap: _evStateMap,
+                  evLoadingMap: _evLoadingMap,
+                  onEVToggle: _toggleEV,
                   onModeToggle: _toggleMode,
                   onOpenSettings: _openSettings,
                   onOpenHistorique: _openHistorique,
-                  onPageChanged: (index) =>
-                      setState(() => _currentVegetableIndex = index),
+                  onPageChanged: (i) =>
+                      setState(() => _currentVegetableIndex = i),
                   externalController: _externalPageController,
                   activeAlert: _activeAlert,
                   onAlertDismissed: () => setState(() => _activeAlert = null),
                 ),
               ),
+
+              // ── POMPE PRINCIPALE — toujours visible sous le slider ─────────
+              _buildMainPumpSection(),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Bloc pompe principale ────────────────────────────────────────────────
+  Widget _buildMainPumpSection() {
+    final isAuto  = _hydraulicData.mode == HydraulicMode.auto;
+    final isOn    = _hydraulicData.pumpState == PumpState.on;
+    final isAlert = _hydraulicData.isAlert;
+    final pct     = (_hydraulicData.fillPercent / 100).clamp(0.0, 1.0);
+    final levelColor = pct < 0.2 ? Colors.red : pct < 0.5 ? Colors.orange : Colors.blue;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isAlert ? Colors.red.shade300 : Colors.blue.shade100,
+          width: isAlert ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (isAlert ? Colors.red : Colors.blue).withOpacity(0.08),
+            blurRadius: 8, offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Titre + indicateurs + badge mode
+          Row(children: [
+            Text(isAlert ? '⚠️' : '💧', style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Pompe Principale',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  Row(children: [
+                    Text(
+                      '${_hydraulicData.fillPercent.toStringAsFixed(0)}%  •  ${_hydraulicData.fillLabel}',
+                      style: TextStyle(fontSize: 10, color: levelColor),
+                    ),
+                    const SizedBox(width: 8),
+                    _dot(_hydraulicData.levelLow, Colors.red),
+                    const SizedBox(width: 2),
+                    Text('MIN', style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
+                    const SizedBox(width: 8),
+                    _dot(_hydraulicData.levelHigh, Colors.green),
+                    const SizedBox(width: 2),
+                    Text('MAX', style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
+                  ]),
+                ],
+              ),
+            ),
+            // Badge AUTO/MANUEL
+            GestureDetector(
+              onTap: _mainModeLoading ? null : _toggleMainMode,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isAuto ? Colors.blue.shade100 : Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isAuto ? Colors.blue.shade300 : Colors.orange.shade300,
+                  ),
+                ),
+                child: _mainModeLoading
+                    ? SizedBox(
+                        width: 12, height: 12,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: isAuto ? Colors.blue.shade700 : Colors.orange.shade700))
+                    : Text(
+                        isAuto ? '🤖 AUTO' : '🕹 MANUEL',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isAuto ? Colors.blue.shade700 : Colors.orange.shade700,
+                        ),
+                      ),
+              ),
+            ),
+          ]),
+
+          const SizedBox(height: 8),
+
+          // Barre niveau
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: pct,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(levelColor),
+              minHeight: 8,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Bouton ON/OFF
+          _buildMainPumpButton(isAuto, isOn),
+        ],
+      ),
+    );
+  }
+
+  Widget _dot(bool active, Color color) => Container(
+        width: 7, height: 7,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: active ? color : Colors.grey.shade300,
+          boxShadow: active
+              ? [BoxShadow(color: color.withOpacity(0.5), blurRadius: 4)]
+              : [],
+        ),
+      );
+
+  Widget _buildMainPumpButton(bool isAuto, bool isOn) {
+    final blocked  = !_hydraulicData.canRun && !isOn;
+    final disabled = isAuto || _mainPumpLoading || blocked;
+    final Color btnColor = isAuto
+        ? Colors.blue
+        : _mainPumpLoading || blocked
+            ? Colors.grey
+            : isOn
+                ? Colors.red
+                : Colors.green;
+    final String btnLabel = _mainPumpLoading
+        ? 'EN COURS...'
+        : isAuto
+            ? 'GÉRÉ AUTOMATIQUEMENT'
+            : blocked
+                ? 'NIVEAU EAU INSUFFISANT'
+                : isOn
+                    ? 'ARRÊTER LA POMPE'
+                    : 'DÉMARRER LA POMPE';
+    final IconData btnIcon = isAuto
+        ? Icons.smart_toy
+        : blocked
+            ? Icons.block
+            : isOn
+                ? Icons.power_settings_new
+                : Icons.play_arrow_rounded;
+
+    return Opacity(
+      opacity: disabled ? 0.6 : 1.0,
+      child: InkWell(
+        onTap: disabled ? null : _toggleMainPump,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+                colors: [btnColor.withOpacity(0.85), btnColor]),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                  color: btnColor.withOpacity(0.28),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4))
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_mainPumpLoading)
+                const SizedBox(
+                    width: 18, height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.5, color: Colors.white))
+              else
+                Icon(btnIcon, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(btnLabel,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14)),
             ],
           ),
         ),
