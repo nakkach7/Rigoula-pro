@@ -1,19 +1,16 @@
-// lib/models/hydraulic_data.dart
-// Représente l'état du système hydraulique central
-
-enum PumpState  { on, off }
-enum FillState  { unknown, low, filling, full, normal }
+enum PumpState    { on, off }
+enum FillState    { unknown, low, filling, full, normal }
 enum HydraulicMode { auto, manuel }
 
 class HydraulicData {
-  final PumpState  pumpState;
-  final FillState  fillState;
+  final PumpState     pumpState;
+  final FillState     fillState;
   final HydraulicMode mode;
-  final bool       canRun;
-  final bool       levelLow;
-  final bool       levelHigh;
-  final double     fillPercent;
-  final String     time;
+  final bool          canRun;
+  final bool          levelLow;
+  final bool          levelHigh;
+  final double        fillPercent;
+  final String        time;
 
   const HydraulicData({
     this.pumpState   = PumpState.off,
@@ -23,30 +20,42 @@ class HydraulicData {
     this.levelLow    = false,
     this.levelHigh   = false,
     this.fillPercent = 50.0,
-    this.time        = "--:--",
+    this.time        = '--:--',
   });
 
   factory HydraulicData.initial() => const HydraulicData();
 
-  factory HydraulicData.fromFirebase(Map<dynamic, dynamic>? res, Map<dynamic, dynamic>? pump) {
-    final r = res   ?? {};
-    final p = pump  ?? {};
-
-    // Compatibilité v1 : ancienne structure hydraulique/hydraulique
+  factory HydraulicData.fromFirebase(
+    Map<dynamic, dynamic>? res,
+    Map<dynamic, dynamic>? pump,
+  ) {
+    final r = res  ?? {};
+    final p = pump ?? {};
     final combined = {...r, ...p};
 
-    bool levelLow  = combined['level_low']  ?? combined['low_level']  ?? false;
-    bool levelHigh = combined['level_high'] ?? combined['high_level'] ?? false;
+    final String modeStr = (p['mode'] ?? 'AUTO').toString().toUpperCase();
+    final HydraulicMode hMode =
+        modeStr == 'MANUEL' ? HydraulicMode.manuel : HydraulicMode.auto;
 
-    PumpState pState = (combined['state'] ?? combined['pump']) == 'ON'
-        ? PumpState.on : PumpState.off;
+    final String pumpRaw;
+    if (hMode == HydraulicMode.manuel) {
+      pumpRaw = (p['cmd'] ?? p['state'] ?? p['pump'] ?? 'OFF')
+          .toString()
+          .toUpperCase();
+    } else {
+      pumpRaw = (p['state'] ?? p['pump'] ?? 'OFF')
+          .toString()
+          .toUpperCase();
+    }
+    final PumpState pState = pumpRaw == 'ON' ? PumpState.on : PumpState.off;
 
-    String modeStr = (combined['mode'] ?? 'AUTO').toString().toUpperCase();
-    HydraulicMode hMode = modeStr == 'MANUEL'
-        ? HydraulicMode.manuel : HydraulicMode.auto;
+    final bool levelLow  = _parseBool(combined['level_low'])  ||
+                           _parseBool(combined['low_level']);
+    final bool levelHigh = _parseBool(combined['level_high']) ||
+                           _parseBool(combined['high_level']);
 
-    // fill_state entier → enum
-    int fillInt = (combined['fill_state'] as num?)?.toInt() ?? 4;
+final bool canRun = !levelHigh;
+    final int fillInt = (combined['fill_state'] as num?)?.toInt() ?? 4;
     FillState fill = _fillFromInt(fillInt);
     if (fill == FillState.unknown) {
       if (levelLow && !levelHigh) fill = FillState.low;
@@ -58,12 +67,23 @@ class HydraulicData {
       pumpState:   pState,
       fillState:   fill,
       mode:        hMode,
-      canRun:      combined['can_run'] as bool? ?? true,
+      canRun:      canRun,
       levelLow:    levelLow,
       levelHigh:   levelHigh,
       fillPercent: (combined['fill_percent'] as num?)?.toDouble() ?? 50.0,
-      time:        combined['time']?.toString() ?? "--:--",
+      time:        combined['time']?.toString() ?? '--:--',
     );
+  }
+
+  static bool _parseBool(dynamic value, {bool defaultValue = false}) {
+    if (value == null) return defaultValue;
+    if (value is bool) return value;
+    if (value is int)  return value != 0;
+    if (value is String) {
+      final s = value.toLowerCase();
+      return s == 'true' || s == '1' || s == 'yes';
+    }
+    return defaultValue;
   }
 
   static FillState _fillFromInt(int v) {
@@ -76,7 +96,6 @@ class HydraulicData {
     }
   }
 
-  // ── UI helpers ─────────────────────────────────────────────────────────
   String get fillLabel {
     switch (fillState) {
       case FillState.low:     return 'Réservoir bas';

@@ -3,7 +3,6 @@ import '../services/firebase_service.dart';
 import '../models/threshold_config.dart';
 
 class SettingsPage extends StatefulWidget {
-  /// The Firebase key for this greenhouse (e.g. "tomate", "tomate_cerise")
   final String serreId;
   final ThresholdConfig currentConfig;
   final Function(ThresholdConfig) onConfigSaved;
@@ -36,16 +35,18 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    _tempMinController =
-        TextEditingController(text: widget.currentConfig.tempMin.toStringAsFixed(1));
-    _tempMaxController =
-        TextEditingController(text: widget.currentConfig.tempMax.toStringAsFixed(1));
-    _humMinController =
-        TextEditingController(text: widget.currentConfig.humMin.toStringAsFixed(1));
-    _humMaxController =
-        TextEditingController(text: widget.currentConfig.humMax.toStringAsFixed(1));
-    _soilMinController = TextEditingController(text: '30.0');
-    _soilMaxController = TextEditingController(text: '70.0');
+    _tempMinController = TextEditingController(
+        text: widget.currentConfig.tempMin.toStringAsFixed(1));
+    _tempMaxController = TextEditingController(
+        text: widget.currentConfig.tempMax.toStringAsFixed(1));
+    _humMinController = TextEditingController(
+        text: widget.currentConfig.humMin.toStringAsFixed(1));
+    _humMaxController = TextEditingController(
+        text: widget.currentConfig.humMax.toStringAsFixed(1));
+    _soilMinController = TextEditingController(
+        text: widget.currentConfig.solMin.toStringAsFixed(1));
+    _soilMaxController = TextEditingController(
+        text: widget.currentConfig.solMax.toStringAsFixed(1));
 
     _loadFromFirebase();
   }
@@ -56,8 +57,8 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         _tempMinController.text = config['temp_min']!.toStringAsFixed(1);
         _tempMaxController.text = config['temp_max']!.toStringAsFixed(1);
-        _humMinController.text = config['hum_min']!.toStringAsFixed(1);
-        _humMaxController.text = config['hum_max']!.toStringAsFixed(1);
+        _humMinController.text  = config['hum_min']!.toStringAsFixed(1);
+        _humMaxController.text  = config['hum_max']!.toStringAsFixed(1);
         if (config['soil_min'] != null)
           _soilMinController.text = config['soil_min']!.toStringAsFixed(1);
         if (config['soil_max'] != null)
@@ -86,7 +87,9 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(width: 12),
           Text(title,
               style: TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: color)),
         ],
       ),
     );
@@ -113,7 +116,9 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           Text(label,
               style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w600, color: color)),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: color)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -179,17 +184,16 @@ class _SettingsPageState extends State<SettingsPage> {
 
     final tempMin = double.parse(_tempMinController.text);
     final tempMax = double.parse(_tempMaxController.text);
-    final humMin = double.parse(_humMinController.text);
-    final humMax = double.parse(_humMaxController.text);
+    final humMin  = double.parse(_humMinController.text);
+    final humMax  = double.parse(_humMaxController.text);
     final soilMin = double.parse(_soilMinController.text);
     final soilMax = double.parse(_soilMaxController.text);
 
-    // Save to /serres/<serreId>/config — isolated per serre
     await FirebaseService.saveConfig(widget.serreId, {
       'temp_min': tempMin,
       'temp_max': tempMax,
-      'hum_min': humMin,
-      'hum_max': humMax,
+      'hum_min':  humMin,
+      'hum_max':  humMax,
       'soil_min': soilMin,
       'soil_max': soilMax,
     });
@@ -197,8 +201,10 @@ class _SettingsPageState extends State<SettingsPage> {
     widget.onConfigSaved(ThresholdConfig(
       tempMin: tempMin,
       tempMax: tempMax,
-      humMin: humMin,
-      humMax: humMax,
+      humMin:  humMin,
+      humMax:  humMax,
+      solMin:  soilMin,
+      solMax:  soilMax,
     ));
 
     setState(() => _isSaving = false);
@@ -219,8 +225,8 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() {
       _tempMinController.text = '15.0';
       _tempMaxController.text = '35.0';
-      _humMinController.text = '30.0';
-      _humMaxController.text = '80.0';
+      _humMinController.text  = '30.0';
+      _humMaxController.text  = '80.0';
       _soilMinController.text = '30.0';
       _soilMaxController.text = '70.0';
     });
@@ -253,20 +259,22 @@ class _SettingsPageState extends State<SettingsPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Info card
             Card(
               color: Colors.blue.shade50,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.blue.shade700, size: 32),
+                    Icon(Icons.info_outline,
+                        color: Colors.blue.shade700, size: 32),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Ces seuils s\'appliquent UNIQUEMENT à la serre $_serreLabel. '
-                        'Ils sont sauvegardés dans Firebase sous /serres/${widget.serreId}/config.',
-                        style: TextStyle(color: Colors.blue.shade900, fontSize: 14),
+                        'Ces seuils s\'appliquent UNIQUEMENT à la serre '
+                        '$_serreLabel. Ils sont sauvegardés dans Firebase '
+                        'sous /serres/${widget.serreId}/config.',
+                        style: TextStyle(
+                            color: Colors.blue.shade900, fontSize: 14),
                       ),
                     ),
                   ],
@@ -274,7 +282,8 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
 
-            _buildSectionTitle('Température', Icons.thermostat, Colors.orange.shade700),
+            _buildSectionTitle(
+                'Température', Icons.thermostat, Colors.orange.shade700),
             _buildRangeInput(
               label: 'Plage de température',
               minController: _tempMinController,
@@ -286,14 +295,17 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             Padding(
               padding: const EdgeInsets.only(left: 40, top: 8),
-              child: Text('Plage capteur DHT11: 0°C - 50°C',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                      fontStyle: FontStyle.italic)),
+              child: Text(
+                'Plage capteur DHT11 : 0°C – 50°C',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic),
+              ),
             ),
 
-            _buildSectionTitle('Humidité de l\'air', Icons.water_drop, Colors.blue.shade700),
+            _buildSectionTitle(
+                'Humidité de l\'air', Icons.water_drop, Colors.blue.shade700),
             _buildRangeInput(
               label: 'Plage d\'humidité',
               minController: _humMinController,
@@ -304,7 +316,8 @@ class _SettingsPageState extends State<SettingsPage> {
               maxLimit: 80.0,
             ),
 
-            _buildSectionTitle('Humidité du sol', Icons.grass, Colors.brown.shade700),
+            _buildSectionTitle(
+                'Humidité du sol', Icons.grass, Colors.brown.shade700),
             _buildRangeInput(
               label: 'Plage d\'humidité du sol',
               minController: _soilMinController,
@@ -341,7 +354,8 @@ class _SettingsPageState extends State<SettingsPage> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.save),
-                    label: Text(_isSaving ? 'Sauvegarde...' : 'Sauvegarder'),
+                    label:
+                        Text(_isSaving ? 'Sauvegarde...' : 'Sauvegarder'),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       backgroundColor: Colors.blue,

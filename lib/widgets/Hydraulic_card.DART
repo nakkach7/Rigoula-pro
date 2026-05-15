@@ -1,6 +1,3 @@
-// lib/widgets/hydraulic_card.dart
-// Dashboard du système hydraulique central (réservoir + pompe)
-
 import 'package:flutter/material.dart';
 import '../models/hydraulic_data.dart';
 
@@ -46,7 +43,6 @@ class HydraulicCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header ──────────────────────────────────────────────
               Row(children: [
                 Container(
                   width: 40, height: 40,
@@ -68,7 +64,6 @@ class HydraulicCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Mode badge
                 GestureDetector(
                   onTap: onModeToggle,
                   child: Container(
@@ -79,7 +74,7 @@ class HydraulicCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      data.mode == HydraulicMode.auto ? '🤖 AUTO' : '🕹 MANUEL',
+                      data.mode == HydraulicMode.auto ? ' AUTO' : ' MANUEL',
                       style: TextStyle(
                         fontSize: 10, fontWeight: FontWeight.bold,
                         color: data.mode == HydraulicMode.auto
@@ -92,12 +87,10 @@ class HydraulicCard extends StatelessWidget {
 
               const SizedBox(height: 14),
 
-              // ── Réservoir ────────────────────────────────────────────
               _ReservoirIndicator(data: data),
 
               const SizedBox(height: 14),
 
-              // ── Statut ───────────────────────────────────────────────
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -134,7 +127,6 @@ class HydraulicCard extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // ── Bouton pompe ─────────────────────────────────────────
               _PumpButton(
                 isOn:      data.pumpState == PumpState.on,
                 isAuto:    data.mode == HydraulicMode.auto,
@@ -143,7 +135,6 @@ class HydraulicCard extends StatelessWidget {
                 onTap:     onPumpToggle,
               ),
 
-              // ── Capteurs niveau ───────────────────────────────────────
               const SizedBox(height: 10),
               Row(children: [
                 _LevelDot(label: 'Niveau bas',  active: data.levelLow,  color: Colors.red),
@@ -161,7 +152,6 @@ class HydraulicCard extends StatelessWidget {
   }
 }
 
-// ── Indicateur visuel réservoir ────────────────────────────────────────────────
 class _ReservoirIndicator extends StatelessWidget {
   final HydraulicData data;
   const _ReservoirIndicator({required this.data});
@@ -199,7 +189,6 @@ class _ReservoirIndicator extends StatelessWidget {
   }
 }
 
-// ── Bouton pompe ───────────────────────────────────────────────────────────────
 class _PumpButton extends StatelessWidget {
   final bool isOn, isAuto, canRun, loading;
   final VoidCallback onTap;
@@ -257,7 +246,6 @@ class _PumpButton extends StatelessWidget {
   }
 }
 
-// ── Indicateur niveau ──────────────────────────────────────────────────────────
 class _LevelDot extends StatelessWidget {
   final String label;
   final bool active;

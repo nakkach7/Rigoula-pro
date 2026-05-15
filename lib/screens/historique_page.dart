@@ -3,9 +3,7 @@ import '../services/firebase_service.dart';
 import '../models/history_data.dart';
 
 class HistoriquePage extends StatefulWidget {
-  /// The Firebase key for this greenhouse (e.g. "tomate", "tomate_cerise")
   final String serreId;
-
   const HistoriquePage({super.key, required this.serreId});
 
   @override
@@ -18,7 +16,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
   String? _error;
 
   String get _serreLabel =>
-      widget.serreId == SerreId.tomate ? 'Tomate 🍅' : 'Tomate Cerise 🍒';
+      widget.serreId == SerreId.tomate ? 'Tomate ' : 'Tomate Cerise ';
 
   @override
   void initState() {
@@ -27,10 +25,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
   }
 
   Future<void> _syncFromFirebase() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    setState(() { _loading = true; _error = null; });
     try {
       FirebaseService.getHistoryStream(widget.serreId)
           .first
@@ -40,13 +35,9 @@ class _HistoriquePageState extends State<HistoriquePage> {
           )
           .then((event) {
         if (!event.snapshot.exists) {
-          setState(() {
-            _history = [];
-            _loading = false;
-          });
+          setState(() { _history = []; _loading = false; });
           return;
         }
-
         final data = Map<String, dynamic>.from(event.snapshot.value as Map);
         final List<DayHistory> result = [];
         data.forEach((date, value) {
@@ -54,23 +45,13 @@ class _HistoriquePageState extends State<HistoriquePage> {
             result.add(DayHistory.fromMap(date, Map<dynamic, dynamic>.from(value)));
           }
         });
-
         result.sort((a, b) => b.date.compareTo(a.date));
-        setState(() {
-          _history = result.take(7).toList();
-          _loading = false;
-        });
+        setState(() { _history = result.take(7).toList(); _loading = false; });
       }).catchError((e) {
-        setState(() {
-          _error = e.toString();
-          _loading = false;
-        });
+        setState(() { _error = e.toString(); _loading = false; });
       });
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+      setState(() { _error = e.toString(); _loading = false; });
     }
   }
 
@@ -79,10 +60,8 @@ class _HistoriquePageState extends State<HistoriquePage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text(
-          "Historique — $_serreLabel",
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Text("Historique — $_serreLabel",
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 2,
@@ -139,7 +118,7 @@ class _HistoriquePageState extends State<HistoriquePage> {
   }
 }
 
-// ─── Day card (unchanged logic, copied from original) ─────────────────────────
+// ─── Day card ─────────────────────────────────────────────────────────────────
 class _DayCard extends StatefulWidget {
   final DayHistory day;
   const _DayCard({required this.day});
@@ -163,6 +142,7 @@ class _DayCardState extends State<_DayCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Header ──────────────────────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -179,27 +159,29 @@ class _DayCardState extends State<_DayCard> {
                 ),
               ],
             ),
+
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.water, size: 14, color: Colors.blue),
-                const SizedBox(width: 4),
-                Text(
-                  d.pompeCount == 0
-                      ? "Pompe non activée"
-                      : "Pompe activée ${d.pompeCount} fois",
-                  style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w600),
-                ),
-              ]),
+
+            Row(
+              children: [
+                Expanded(child: _buildActivationChip(
+                  
+                  color: Colors.blue,
+                  count: d.pumpCount,
+                  duration: d.pumpDuration,
+                  label: 'Pompe',
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: _buildActivationChip(
+                  
+                  color: Colors.teal,
+                  count: d.evCount,
+                  duration: d.evDuration,
+                  label: 'Électrovanne',
+                )),
+              ],
             ),
+
             if (_expanded) ...[
               const SizedBox(height: 12),
               const Divider(),
@@ -230,6 +212,58 @@ class _DayCardState extends State<_DayCard> {
       ),
     );
   }
+
+Widget _buildActivationChip({
+  required Color color,
+  required int count,
+  required int duration,
+  required String label,
+}) {
+  final bool active = count > 0;
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+    decoration: BoxDecoration(
+      color: active ? color.withOpacity(0.1) : Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: active ? color.withOpacity(0.3) : Colors.grey.shade300,
+      ),
+    ),
+    child: active
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$count activation${count > 1 ? 's' : ''} $label',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+
+              if (duration > 0) ...[
+                const SizedBox(height: 2),
+                Text(
+                  DayHistory.formatDuration(duration),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: color.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ],
+          )
+        : Text(
+            '$label non activée',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade600,
+            ),
+          ),
+  );
+}
 
   Widget _buildMinMax(
       String label, double min, double max, String unit, Color color) {

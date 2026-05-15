@@ -1,32 +1,18 @@
-// lib/models/alert_payload.dart
-//
-// Represents a decoded FCM notification payload.
-// Passed around the app to drive navigation and UI highlighting.
-
-/// The type of sensor anomaly reported by the backend.
 enum AlertType {
-  tempHigh,   // temperature above max
-  tempLow,    // temperature below min
-  humHigh,    // air humidity above max
-  humLow,     // air humidity below min
-  soilHigh,   // soil moisture above max
-  soilLow,    // soil moisture below min
+  tempHigh,   
+  tempLow,    
+  humHigh,    
+  humLow,     
+  soilHigh,   
+  soilLow,    
   unknown,
 }
 
 class AlertPayload {
-  /// Firebase/serre key: "tomate" | "tomate_cerise"
   final String serreId;
-
-  /// Decoded anomaly type
   final AlertType alertType;
-
-  /// Human-readable message from backend
   final String message;
-
-  /// Unix timestamp sent by backend (optional, 0 if missing)
   final int timestamp;
-
   const AlertPayload({
     required this.serreId,
     required this.alertType,
@@ -34,11 +20,8 @@ class AlertPayload {
     this.timestamp = 0,
   });
 
-  // ─── PageView index for this serre ──────────────────────────────────────
   int get pageIndex => serreId == 'tomate' ? 0 : 1;
 
-  // ─── Which sensor key is anomalous ──────────────────────────────────────
-  /// Returns the field name that should be highlighted in the UI.
   String get affectedSensor {
     switch (alertType) {
       case AlertType.tempHigh:
@@ -55,7 +38,7 @@ class AlertPayload {
     }
   }
 
-  // ─── Parse FCM data map ─────────────────────────────────────────────────
+  // FCM map 
   factory AlertPayload.fromFcmData(Map<String, dynamic> data) {
     final serreId = (data['serre'] as String?) ?? 'tomate';
     final typeStr = (data['type'] as String?) ?? '';
@@ -70,10 +53,7 @@ class AlertPayload {
     );
   }
 
-  // ─── Parse Firebase /last_alert map ─────────────────────────────────────
   factory AlertPayload.fromLastAlert(String serreId, Map<dynamic, dynamic> data) {
-    // last_alert stores the raw alert list written by the Python backend.
-    // We derive alertType from the first alert string heuristically.
     final alerts = data['alerts'];
     String firstAlert = '';
     if (alerts is List && alerts.isNotEmpty) {
@@ -112,7 +92,6 @@ class AlertPayload {
     return AlertType.unknown;
   }
 
-  // ─── UI helpers ─────────────────────────────────────────────────────────
   String get alertIcon {
     switch (alertType) {
       case AlertType.tempHigh:   return '🔥';

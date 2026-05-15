@@ -2,13 +2,11 @@ import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import '../services/firebase_service.dart';
-import '../services/notification_service.dart';
 import '../services/notification_router.dart';
 import '../models/sensor_data.dart';
-import '../models/soil_sensor_data.dart';
 import '../models/threshold_config.dart';
 import '../models/alert_payload.dart';
-import '../models/hydraulic_data.dart';
+import '../models/Hydraulic_data.dart';
 import '../widgets/vegetable_slider.dart';
 import 'settings_page.dart';
 import 'historique_page.dart';
@@ -44,7 +42,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     SerreId.tomate: true,
     SerreId.tomate_cerise: true,
   };
-  // EV state per serre
   final Map<String, bool> _evStateMap = {
     SerreId.tomate: false,
     SerreId.tomate_cerise: false,
@@ -62,7 +59,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     SerreId.tomate_cerise: false,
   };
 
-  // Hydraulic (pompe principale)
+  // Hydraulique
   HydraulicData _hydraulicData = HydraulicData.initial();
   bool _mainPumpLoading = false;
   bool _mainModeLoading = false;
@@ -168,12 +165,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final config = await FirebaseService.loadConfig(serreId);
     if (config != null && mounted) {
       setState(() {
-        _thresholdMap[serreId] = ThresholdConfig(
-          tempMin: config['temp_min']!,
-          tempMax: config['temp_max']!,
-          humMin: config['hum_min']!,
-          humMax: config['hum_max']!,
-        );
+        _thresholdMap[serreId] = ThresholdConfig.fromMap(config);
       });
     }
   }
@@ -189,7 +181,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               moisture: (data['soil_percent'] as num?)?.toDouble() ?? 45.0,
               isPumpActive: data['pump']?.toString() == 'ON',
             );
-            _autoModeMap[serreId] ??= (data['mode']?.toString() ?? 'AUTO') == 'AUTO';
+            _autoModeMap[serreId] = (data['mode']?.toString() ?? 'AUTO') == 'AUTO';
             _evStateMap[serreId] = data['ev']?.toString() == 'OPEN';
             _connectedMap[serreId] = true;
           });
@@ -223,7 +215,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
   }
 
-  // ── EV toggle ──────────────────────────────────────────────────────────────
   Future<void> _toggleEV(String serreId) async {
     if (_evLoadingMap[serreId] ?? false) return;
     if (_autoModeMap[serreId] ?? true) {
@@ -244,6 +235,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
     if (ok) {
       if (open) FirebaseService.incrementEVOpenCount(serreId);
+      FirebaseService.logAction(
+        serreId: serreId,
+        type: open ? 'ev_open' : 'ev_close',
+        source: 'flutter_manual',
+      );
       final label = serreId == SerreId.tomate ? 'Tomate' : 'Tomate Cerise';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(open
@@ -260,7 +256,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  // ── Mode toggle ────────────────────────────────────────────────────────────
   void _toggleMode(String serreId) async {
     final currentAuto = _autoModeMap[serreId] ?? true;
     final newMode = currentAuto ? "MANUEL" : "AUTO";
@@ -276,7 +271,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  // ── Main pump toggle ───────────────────────────────────────────────────────
   Future<void> _toggleMainPump() async {
     if (_mainPumpLoading) return;
     if (_hydraulicData.mode == HydraulicMode.auto) {
@@ -287,9 +281,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ));
       return;
     }
-    if (!_hydraulicData.canRun && _hydraulicData.pumpState == PumpState.off) {
+    if (_hydraulicData.levelHigh && _hydraulicData.pumpState == PumpState.off) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('⚠️ Pompe bloquée — niveau d\'eau insuffisant'),
+        content: const Text('⚠️ Pompe bloquée — Citerne deja pleine'),
         backgroundColor: Colors.red.shade700,
         duration: const Duration(seconds: 2),
       ));
@@ -300,6 +294,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final ok = await FirebaseService.setHydraulicPumpCmd(turnOn);
     if (!mounted) return;
     setState(() => _mainPumpLoading = false);
+
+    if (ok) {
+      if (turnOn) FirebaseService.incrementPumpCount();
+      FirebaseService.logAction(
+        serreId: 'hydraulique',
+        type: turnOn ? 'pump_on' : 'pump_off',
+        source: 'flutter_manual',
+      );
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(ok
           ? (turnOn ? '💧 Pompe principale ON' : '⛔ Pompe principale OFF')
@@ -327,7 +331,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  // ── Navigation ─────────────────────────────────────────────────────────────
   void _openSettings(String serreId) async {
     await VoiceService.stopSession();
     if (!mounted) return;
@@ -359,6 +362,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _toggleMainPump();
         _showVoiceSnack('⛔ Pompe principale OFF');
         break;
+      case VoiceCommand.evOpen:
+          _toggleEV(_currentSerreId);
+          _showVoiceSnack('💧 EV ${_currentSerreId} OUVERTE');
+      break;
+      case VoiceCommand.evClose:
+        _toggleEV(_currentSerreId);
+        _showVoiceSnack('🔒 EV ${_currentSerreId} FERMÉE');
+      break;
       case VoiceCommand.modeAuto:
         if (!(_autoModeMap[_currentSerreId] ?? true)) _toggleMode(_currentSerreId);
         _showVoiceSnack('🤖 Mode AUTO');
@@ -412,9 +423,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // BUILD
-  // ─────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
@@ -510,7 +518,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: Column(
             children: [
-              // ── Slider serres ─────────────────────────────────────────────
               Expanded(
                 child: VegetableSlider(
                   sensorDataMap: _sensorDataMap,
@@ -532,7 +539,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ),
               ),
 
-              // ── POMPE PRINCIPALE — toujours visible sous le slider ─────────
               _buildMainPumpSection(),
               const SizedBox(height: 8),
             ],
@@ -542,7 +548,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  // ─── Bloc pompe principale ────────────────────────────────────────────────
   Widget _buildMainPumpSection() {
     final isAuto  = _hydraulicData.mode == HydraulicMode.auto;
     final isOn    = _hydraulicData.pumpState == PumpState.on;
@@ -569,7 +574,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Titre + indicateurs + badge mode
           Row(children: [
             Text(isAlert ? '⚠️' : '💧', style: const TextStyle(fontSize: 20)),
             const SizedBox(width: 8),
@@ -596,7 +600,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ],
               ),
             ),
-            // Badge AUTO/MANUEL
             GestureDetector(
               onTap: _mainModeLoading ? null : _toggleMainMode,
               child: AnimatedContainer(
@@ -616,7 +619,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                             strokeWidth: 2,
                             color: isAuto ? Colors.blue.shade700 : Colors.orange.shade700))
                     : Text(
-                        isAuto ? '🤖 AUTO' : '🕹 MANUEL',
+                        isAuto ? ' AUTO' : ' MANUEL',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
@@ -629,7 +632,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
           const SizedBox(height: 8),
 
-          // Barre niveau
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
@@ -642,7 +644,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
           const SizedBox(height: 10),
 
-          // Bouton ON/OFF
           _buildMainPumpButton(isAuto, isOn),
         ],
       ),
@@ -661,7 +662,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       );
 
   Widget _buildMainPumpButton(bool isAuto, bool isOn) {
-    final blocked  = !_hydraulicData.canRun && !isOn;
+
+    final blocked  = _hydraulicData.levelHigh && !isOn;
     final disabled = isAuto || _mainPumpLoading || blocked;
     final Color btnColor = isAuto
         ? Colors.blue
@@ -675,14 +677,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         : isAuto
             ? 'GÉRÉ AUTOMATIQUEMENT'
             : blocked
-                ? 'NIVEAU EAU INSUFFISANT'
+                ? 'CITERNE PLEINE - POMPE BLOQUEE'
                 : isOn
                     ? 'ARRÊTER LA POMPE'
                     : 'DÉMARRER LA POMPE';
     final IconData btnIcon = isAuto
         ? Icons.smart_toy
         : blocked
-            ? Icons.block
+            ? Icons.water_drop
             : isOn
                 ? Icons.power_settings_new
                 : Icons.play_arrow_rounded;

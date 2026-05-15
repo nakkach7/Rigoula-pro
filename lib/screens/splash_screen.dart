@@ -1,17 +1,11 @@
-// lib/screens/splash_screen.dart
-//
-// Only change from original: accepts an optional AlertPayload and forwards
-// it to HomePage so the correct serre slide opens on launch.
-
 import 'package:flutter/material.dart';
 import 'home_page.dart';
-import '../models/alert_payload.dart'; // ← NEW
+import '../models/alert_payload.dart'; 
 
 class SplashScreen extends StatefulWidget {
-  /// Forwarded from main() when the app was cold-started via a notification tap.
-  final AlertPayload? initialAlert; // ← NEW
+  final AlertPayload? initialAlert; 
 
-  const SplashScreen({super.key, this.initialAlert}); // ← NEW
+  const SplashScreen({super.key, this.initialAlert}); 
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -52,7 +46,7 @@ class _SplashScreenState extends State<SplashScreen>
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 600),
             pageBuilder: (_, __, ___) => HomePage(
-              initialAlert: widget.initialAlert, // ← FORWARD
+              initialAlert: widget.initialAlert, 
             ),
             transitionsBuilder: (_, animation, __, child) =>
                 FadeTransition(opacity: animation, child: child),

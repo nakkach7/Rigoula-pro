@@ -78,7 +78,6 @@ class _ThresholdConfigCardState extends State<ThresholdConfigCard> {
             ),
             const SizedBox(height: 16),
 
-            // Temperature thresholds
             const Text(
               "Température (°C)",
               style: TextStyle(
@@ -107,7 +106,6 @@ class _ThresholdConfigCardState extends State<ThresholdConfigCard> {
 
             const SizedBox(height: 16),
 
-            // Humidity thresholds
             const Text(
               "Humidité (%)",
               style: TextStyle(
@@ -135,7 +133,6 @@ class _ThresholdConfigCardState extends State<ThresholdConfigCard> {
             ),
             const SizedBox(height: 16),
 
-// Soil thresholds
 const Text(
   "Humidité du sol (%)",
   style: TextStyle(
@@ -168,7 +165,6 @@ Row(
 
             const SizedBox(height: 20),
 
-            // Verify Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(

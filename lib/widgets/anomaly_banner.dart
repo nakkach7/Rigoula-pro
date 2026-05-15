@@ -1,9 +1,3 @@
-// lib/widgets/anomaly_banner.dart
-//
-// Displayed at the top of a serre card when an AlertPayload targets that serre.
-// Automatically dismissed after [autoDismissSeconds] seconds, or manually
-// via the × button.
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/alert_payload.dart';
@@ -43,7 +37,6 @@ class _AnomalyBannerState extends State<AnomalyBanner>
     );
     _animController.forward();
 
-    // Auto-dismiss
     _timer = Timer(Duration(seconds: widget.autoDismissSeconds), _dismiss);
   }
 
@@ -84,11 +77,8 @@ class _AnomalyBannerState extends State<AnomalyBanner>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Pulsing icon ────────────────────────────────────────────
               _PulseIcon(icon: p.alertIcon),
               const SizedBox(width: 10),
-
-              // ── Text content ────────────────────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,7 +113,6 @@ class _AnomalyBannerState extends State<AnomalyBanner>
                 ),
               ),
 
-              // ── Dismiss button ──────────────────────────────────────────
               GestureDetector(
                 onTap: _dismiss,
                 child: Icon(Icons.close, size: 16, color: Colors.red.shade400),
@@ -143,7 +132,6 @@ class _AnomalyBannerState extends State<AnomalyBanner>
   }
 }
 
-// ─── Small pulsing emoji widget ───────────────────────────────────────────────
 class _PulseIcon extends StatefulWidget {
   final String icon;
   const _PulseIcon({required this.icon});

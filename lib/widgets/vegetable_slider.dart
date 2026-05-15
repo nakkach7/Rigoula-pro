@@ -1,14 +1,10 @@
-// lib/widgets/vegetable_slider.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import '../models/sensor_data.dart';
-import '../models/soil_sensor_data.dart';
 import '../models/threshold_config.dart';
 import '../models/alert_payload.dart';
 import 'anomaly_banner.dart';
 
-// ─── Serre descriptor ────────────────────────────────────────────────────────
 class SerreData {
   final String name;
   final String emoji;
@@ -23,7 +19,6 @@ class SerreData {
   });
 }
 
-// ─── Widget ──────────────────────────────────────────────────────────────────
 class VegetableSlider extends StatefulWidget {
   final Map<String, SensorData> sensorDataMap;
   final Map<String, SoilSensorData> soilDataMap;
@@ -31,12 +26,8 @@ class VegetableSlider extends StatefulWidget {
   final Map<String, bool> autoModeMap;
   final Map<String, bool> pumpLoadingMap;
 
-  // ── EV state (NOUVEAU) ─────────────────────────────────────────────────────
-  /// true = électrovanne OUVERTE pour cette serre
   final Map<String, bool> evStateMap;
-  /// true = commande EV en cours (affiche spinner)
   final Map<String, bool> evLoadingMap;
-  /// Callback pour toggle EV d'une serre
   final void Function(String serreId) onEVToggle;
 
   final void Function(String serreId) onModeToggle;
@@ -66,7 +57,6 @@ class VegetableSlider extends StatefulWidget {
     this.externalController,
     this.activeAlert,
     this.onAlertDismissed,
-    // kept for backward compat — not used anymore
     void Function(String)? onPumpToggle,
   });
 
@@ -158,12 +148,10 @@ class _VegetableSliderState extends State<VegetableSlider> {
   Color _getValueColor(double value, double min, double max) =>
       (value < min || value > max) ? Colors.red : Colors.green.shade700;
 
-  // ─── BUILD ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Header
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           child: Row(
@@ -192,7 +180,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
           ),
         ),
 
-        // PageView
         Expanded(
           child: PageView.builder(
             controller: _pageController,
@@ -205,7 +192,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
           ),
         ),
 
-        // Page dots
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
@@ -231,7 +217,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
     );
   }
 
-  // ─── Serre card ──────────────────────────────────────────────────────────
   Widget _buildSerreCard(SerreData serre) {
     final sensor     = widget.sensorDataMap[serre.serreId]     ?? SensorData.initial();
     final soil       = widget.soilDataMap[serre.serreId]       ?? SoilSensorData.initial();
@@ -269,7 +254,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Card header ─────────────────────────────────────────
                 Row(
                   children: [
                     Container(
@@ -293,8 +277,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: serre.color)),
-                          const Text("Rigoula · Serre indépendante",
-                              style: TextStyle(fontSize: 10, color: Colors.grey)),
                         ],
                       ),
                     ),
@@ -317,7 +299,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
 
                 const SizedBox(height: 10),
 
-                // ── Anomaly banner ──────────────────────────────────────
                 if (hasAlert)
                   AnomalyBanner(
                     key: ValueKey('banner_${alert.serreId}_${alert.timestamp}'),
@@ -325,7 +306,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
                     onDismiss: () => widget.onAlertDismissed?.call(),
                   ),
 
-                // ── Mode banner ─────────────────────────────────────────
                 GestureDetector(
                   onTap: () => widget.onModeToggle(serre.serreId),
                   child: Container(
@@ -346,7 +326,7 @@ class _VegetableSliderState extends State<VegetableSlider> {
                         Expanded(
                           child: Text(
                             isAuto
-                                ? 'AUTO — ESP32 gère l\'électrovanne'
+                                ? 'AUTO — l\'irrigation automatique '
                                 : 'MANUEL — Vous contrôlez l\'électrovanne',
                             style: TextStyle(
                                 fontSize: 11,
@@ -371,7 +351,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
 
                 const SizedBox(height: 14),
 
-                // ── Sensor rows ─────────────────────────────────────────
                 _buildSensorRow(
                   rowKey: _tempKeys[serre.serreId]!,
                   icon: Icons.thermostat,
@@ -410,7 +389,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
 
                 const SizedBox(height: 14),
 
-                // ── BOUTON ÉLECTROVANNE (remplace l'ancien bouton pompe) ─
                 _buildEVButton(
                   serreId: serre.serreId,
                   serreColor: serre.color,
@@ -421,7 +399,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
 
                 const SizedBox(height: 10),
 
-                // ── Footer ───────────────────────────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -431,7 +408,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
                       Text(sensor.time,
                           style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                     ]),
-                    // Statut EV
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
@@ -473,7 +449,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
     );
   }
 
-  // ─── Bouton ÉLECTROVANNE ───────────────────────────────────────────────────
   Widget _buildEVButton({
     required String serreId,
     required Color serreColor,
@@ -483,7 +458,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
   }) {
     final isDisabled = isAutoMode || isLoading;
 
-    // Couleurs et labels selon l'état
     final Color btnColor = isDisabled
         ? Colors.grey
         : isOpen
@@ -501,8 +475,8 @@ class _VegetableSliderState extends State<VegetableSlider> {
     final IconData btnIcon = isAutoMode
         ? Icons.smart_toy
         : isOpen
-            ? Icons.water_drop         // ouvert → icône valve
-            : Icons.water_drop;        // même icône, couleur différente
+            ? Icons.water_drop        
+            : Icons.water_drop;        
 
     return Opacity(
       opacity: isDisabled ? 0.55 : 1.0,
@@ -554,7 +528,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
     );
   }
 
-  // ─── Sensor row (inchangé) ────────────────────────────────────────────────
   Widget _buildSensorRow({
     required GlobalKey rowKey,
     required IconData icon,
