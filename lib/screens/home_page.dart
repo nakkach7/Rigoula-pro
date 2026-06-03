@@ -22,54 +22,54 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final Map<String, Color> _serreColors = {
-    SerreId.tomate: const Color(0xFFE74C3C),
+    SerreId.tomate:        const Color(0xFFE74C3C),
     SerreId.tomate_cerise: const Color(0xFFC0392B),
   };
 
-  final Map<String, SensorData> _sensorDataMap = {
-    SerreId.tomate: SensorData.initial(),
+  final Map<String, SensorData>     _sensorDataMap = {
+    SerreId.tomate:        SensorData.initial(),
     SerreId.tomate_cerise: SensorData.initial(),
   };
   final Map<String, SoilSensorData> _soilDataMap = {
-    SerreId.tomate: SoilSensorData.initial(),
+    SerreId.tomate:        SoilSensorData.initial(),
     SerreId.tomate_cerise: SoilSensorData.initial(),
   };
   final Map<String, ThresholdConfig> _thresholdMap = {
-    SerreId.tomate: ThresholdConfig(),
+    SerreId.tomate:        ThresholdConfig(),
     SerreId.tomate_cerise: ThresholdConfig(),
   };
-  final Map<String, bool> _autoModeMap = {
-    SerreId.tomate: true,
+
+  final Map<String, bool> _autoEVMap = {
+    SerreId.tomate:        true,
     SerreId.tomate_cerise: true,
   };
   final Map<String, bool> _evStateMap = {
-    SerreId.tomate: false,
+    SerreId.tomate:        false,
     SerreId.tomate_cerise: false,
   };
   final Map<String, bool> _evLoadingMap = {
-    SerreId.tomate: false,
+    SerreId.tomate:        false,
     SerreId.tomate_cerise: false,
   };
   final Map<String, bool> _pumpLoadingMap = {
-    SerreId.tomate: false,
+    SerreId.tomate:        false,
     SerreId.tomate_cerise: false,
   };
   final Map<String, bool> _connectedMap = {
-    SerreId.tomate: false,
+    SerreId.tomate:        false,
     SerreId.tomate_cerise: false,
   };
 
-  // Hydraulique
-  HydraulicData _hydraulicData = HydraulicData.initial();
-  bool _mainPumpLoading = false;
-  bool _mainModeLoading = false;
+  HydraulicData _hydraulicData    = HydraulicData.initial();
+  bool          _mainPumpLoading  = false;
+  bool          _mainModeLoading  = false;
   StreamSubscription<DatabaseEvent>? _hydResSub;
   StreamSubscription<DatabaseEvent>? _hydPumpSub;
   Map<dynamic, dynamic>? _hydResSnap;
   Map<dynamic, dynamic>? _hydPumpSnap;
 
-  int _currentVegetableIndex = 0;
-  bool _isListening = false;
+  int           _currentVegetableIndex = 0;
+  bool          _isListening           = false;
   late PageController _externalPageController;
   AlertPayload? _activeAlert;
   StreamSubscription<AlertPayload>? _alertSub;
@@ -87,7 +87,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _externalPageController = PageController();
     if (widget.initialAlert != null) _activeAlert = widget.initialAlert;
-    _alertSub = NotificationRouter.onAlert.listen((p) => setState(() => _activeAlert = p));
+    _alertSub = NotificationRouter.onAlert.listen(
+        (p) => setState(() => _activeAlert = p));
     for (final id in SerreId.all) {
       _listenToFirebase(id);
       _loadConfig(id);
@@ -121,7 +122,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() => _isListening = true);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('🎤 Rigoula à votre écoute !'),
+        content: const Text('Rigoula a votre ecoute'),
         backgroundColor: _activeColor,
         duration: const Duration(seconds: 2),
       ));
@@ -134,7 +135,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (!mounted) return;
       setState(() => _isListening = false);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('🔇 Session vocale terminée'),
+        content: Text('Session vocale terminee'),
         backgroundColor: Colors.grey,
         duration: Duration(seconds: 2),
       ));
@@ -149,9 +150,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             .ref("serres/$serreId/last_alert")
             .get();
         if (snap.exists && snap.value != null) {
-          final data = Map<dynamic, dynamic>.from(snap.value as Map);
+          final data    = Map<dynamic, dynamic>.from(snap.value as Map);
           final payload = AlertPayload.fromLastAlert(serreId, data);
-          final age = DateTime.now().millisecondsSinceEpoch ~/ 1000 - payload.timestamp;
+          final age = DateTime.now().millisecondsSinceEpoch ~/ 1000 -
+              payload.timestamp;
           if (age < 3600 && payload.alertType != AlertType.unknown) {
             if (mounted) setState(() => _activeAlert = payload);
             break;
@@ -164,9 +166,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<void> _loadConfig(String serreId) async {
     final config = await FirebaseService.loadConfig(serreId);
     if (config != null && mounted) {
-      setState(() {
-        _thresholdMap[serreId] = ThresholdConfig.fromMap(config);
-      });
+      setState(() => _thresholdMap[serreId] = ThresholdConfig.fromMap(config));
     }
   }
 
@@ -177,11 +177,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         if (data != null && mounted) {
           setState(() {
             _sensorDataMap[serreId] = SensorData.fromMap(data);
-            _soilDataMap[serreId] = SoilSensorData(
-              moisture: (data['soil_percent'] as num?)?.toDouble() ?? 45.0,
+            _soilDataMap[serreId]   = SoilSensorData(
+              moisture:     (data['soil_percent'] as num?)?.toDouble() ?? 0.0,
               isPumpActive: data['pump']?.toString() == 'ON',
             );
-            _autoModeMap[serreId] = (data['mode']?.toString() ?? 'AUTO') == 'AUTO';
+            _autoEVMap[serreId]  =
+                (data['mode_ev']?.toString() ?? 'AUTO') == 'AUTO';
             _evStateMap[serreId] = data['ev']?.toString() == 'OPEN';
             _connectedMap[serreId] = true;
           });
@@ -217,9 +218,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _toggleEV(String serreId) async {
     if (_evLoadingMap[serreId] ?? false) return;
-    if (_autoModeMap[serreId] ?? true) {
+    if (_autoEVMap[serreId] ?? true) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('🤖 Mode AUTO — passez en MANUEL pour contrôler l\'EV'),
+        content: Text('Mode AUTO — passez en MANUEL pour controler l\'EV'),
         backgroundColor: Colors.blue,
         duration: Duration(seconds: 2),
       ));
@@ -234,48 +235,46 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (ok) _evStateMap[serreId] = open;
     });
     if (ok) {
-      if (open) FirebaseService.incrementEVOpenCount(serreId);
+      if (open) FirebaseService.incrementEVCount(serreId);
       FirebaseService.logAction(
         serreId: serreId,
-        type: open ? 'ev_open' : 'ev_close',
-        source: 'flutter_manual',
+        type:    open ? 'ev_open' : 'ev_close',
+        source:  'flutter_manual',
       );
       final label = serreId == SerreId.tomate ? 'Tomate' : 'Tomate Cerise';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(open
-            ? '💧 EV $label OUVERTE — irrigation démarrée'
-            : '🔒 EV $label FERMÉE'),
+            ? 'EV $label OUVERTE — irrigation demarree'
+            : 'EV $label FERMEE'),
         backgroundColor: open ? Colors.blue : Colors.grey.shade700,
         duration: const Duration(seconds: 2),
       ));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('❌ Erreur commande électrovanne'),
+        content: Text('Erreur commande electrovanne'),
         backgroundColor: Colors.orange,
       ));
     }
   }
 
-  void _toggleMode(String serreId) async {
-    final currentAuto = _autoModeMap[serreId] ?? true;
-    final newMode = currentAuto ? "MANUEL" : "AUTO";
-    final ok = await FirebaseService.setMode(serreId, newMode);
-    if (!mounted) return;
-    if (ok) {
-      setState(() => _autoModeMap[serreId] = !currentAuto);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(!currentAuto ? '🤖 Mode AUTO activé' : '🕹️ Mode MANUEL activé'),
-        backgroundColor: !currentAuto ? Colors.blue : Colors.orange,
-        duration: const Duration(seconds: 2),
-      ));
-    }
+  Future<void> _toggleEVMode(String serreId) async {
+    final currentAuto = _autoEVMap[serreId] ?? true;
+    final newMode = currentAuto ? 'MANUEL' : 'AUTO';
+    final ok = await FirebaseService.setEVMode(serreId, newMode);
+    if (!mounted || !ok) return;
+    setState(() => _autoEVMap[serreId] = !currentAuto);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(!currentAuto ? 'EV — Mode AUTO' : 'EV — Mode MANUEL'),
+      backgroundColor: !currentAuto ? Colors.blue : Colors.orange,
+      duration: const Duration(seconds: 2),
+    ));
   }
 
   Future<void> _toggleMainPump() async {
     if (_mainPumpLoading) return;
     if (_hydraulicData.mode == HydraulicMode.auto) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('🤖 Mode AUTO — passez en MANUEL pour contrôler la pompe'),
+        content: Text('Mode AUTO — passez en MANUEL pour controler la pompe'),
         backgroundColor: Colors.blue,
         duration: Duration(seconds: 2),
       ));
@@ -283,7 +282,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
     if (_hydraulicData.levelHigh && _hydraulicData.pumpState == PumpState.off) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('⚠️ Pompe bloquée — Citerne deja pleine'),
+        content: const Text('Pompe bloquee — citerne deja pleine'),
         backgroundColor: Colors.red.shade700,
         duration: const Duration(seconds: 2),
       ));
@@ -294,20 +293,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final ok = await FirebaseService.setHydraulicPumpCmd(turnOn);
     if (!mounted) return;
     setState(() => _mainPumpLoading = false);
-
     if (ok) {
-      if (turnOn) FirebaseService.incrementPumpCount();
+      if (turnOn) FirebaseService.incrementPumpCount(SerreId.tomate);
       FirebaseService.logAction(
         serreId: 'hydraulique',
-        type: turnOn ? 'pump_on' : 'pump_off',
-        source: 'flutter_manual',
+        type:    turnOn ? 'pump_on' : 'pump_off',
+        source:  'flutter_manual',
       );
     }
-
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(ok
-          ? (turnOn ? '💧 Pompe principale ON' : '⛔ Pompe principale OFF')
-          : '❌ Erreur commande pompe'),
+          ? (turnOn ? 'Pompe principale ON' : 'Pompe principale OFF')
+          : 'Erreur commande pompe'),
       backgroundColor: ok ? (turnOn ? Colors.green : Colors.red) : Colors.orange,
       duration: const Duration(seconds: 2),
     ));
@@ -316,15 +313,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<void> _toggleMainMode() async {
     if (_mainModeLoading) return;
     setState(() => _mainModeLoading = true);
-    final newMode = _hydraulicData.mode == HydraulicMode.auto ? 'MANUEL' : 'AUTO';
+    final newMode =
+        _hydraulicData.mode == HydraulicMode.auto ? 'MANUEL' : 'AUTO';
     final ok = await FirebaseService.setHydraulicMode(newMode);
     if (!mounted) return;
     setState(() => _mainModeLoading = false);
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(newMode == 'AUTO'
-            ? '🤖 Pompe principale — Mode AUTO'
-            : '🕹️ Pompe principale — Mode MANUEL'),
+            ? 'Pompe principale — Mode AUTO'
+            : 'Pompe principale — Mode MANUEL'),
         backgroundColor: newMode == 'AUTO' ? Colors.blue : Colors.orange,
         duration: const Duration(seconds: 2),
       ));
@@ -334,21 +332,26 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void _openSettings(String serreId) async {
     await VoiceService.stopSession();
     if (!mounted) return;
-    await Navigator.push(context, MaterialPageRoute(
-      builder: (_) => SettingsPage(
-        serreId: serreId,
-        currentConfig: _thresholdMap[serreId]!,
-        onConfigSaved: (c) => setState(() => _thresholdMap[serreId] = c),
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SettingsPage(
+          serreId:       serreId,
+          currentConfig: _thresholdMap[serreId]!,
+          onConfigSaved: (c) => setState(() => _thresholdMap[serreId] = c),
+        ),
       ),
-    ));
+    );
     if (mounted) VoiceService.startIdleListening();
   }
 
   void _openHistorique(String serreId) async {
     await VoiceService.stopSession();
     if (!mounted) return;
-    await Navigator.push(context, MaterialPageRoute(
-        builder: (_) => HistoriquePage(serreId: serreId)));
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => HistoriquePage(serreId: serreId)),
+    );
     if (mounted) VoiceService.startIdleListening();
   }
 
@@ -356,51 +359,65 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     switch (command) {
       case VoiceCommand.pumpOn:
         _toggleMainPump();
-        _showVoiceSnack('💧 Pompe principale ON');
         break;
       case VoiceCommand.pumpOff:
         _toggleMainPump();
-        _showVoiceSnack('⛔ Pompe principale OFF');
         break;
       case VoiceCommand.evOpen:
-          _toggleEV(_currentSerreId);
-          _showVoiceSnack('💧 EV ${_currentSerreId} OUVERTE');
-      break;
+        _toggleEV(_currentSerreId);
+        break;
       case VoiceCommand.evClose:
         _toggleEV(_currentSerreId);
-        _showVoiceSnack('🔒 EV ${_currentSerreId} FERMÉE');
-      break;
+        break;
       case VoiceCommand.modeAuto:
-        if (!(_autoModeMap[_currentSerreId] ?? true)) _toggleMode(_currentSerreId);
-        _showVoiceSnack('🤖 Mode AUTO');
+        if (!(_autoEVMap[_currentSerreId] ?? true)) {
+          _toggleEVMode(_currentSerreId);
+        }
+        _showVoiceSnack('Mode EV AUTO');
         break;
       case VoiceCommand.modeManuel:
-        if (_autoModeMap[_currentSerreId] ?? true) _toggleMode(_currentSerreId);
-        _showVoiceSnack('🕹️ Mode MANUEL');
+        if (_autoEVMap[_currentSerreId] ?? true) {
+          _toggleEVMode(_currentSerreId);
+        }
+        _showVoiceSnack('Mode EV MANUEL');
         break;
-      case VoiceCommand.openHistorique: _openHistorique(_currentSerreId); break;
-      case VoiceCommand.openSettings:   _openSettings(_currentSerreId);   break;
+      case VoiceCommand.openHistorique:
+        _openHistorique(_currentSerreId);
+        break;
+      case VoiceCommand.openSettings:
+        _openSettings(_currentSerreId);
+        break;
       case VoiceCommand.slideTomate:
         _externalPageController.animateToPage(0,
-            duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-        _showVoiceSnack('🍅 Tomate'); break;
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut);
+        _showVoiceSnack('Tomate');
+        break;
       case VoiceCommand.slidecerise:
         _externalPageController.animateToPage(1,
-            duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-        _showVoiceSnack('🍒 Tomate Cerise'); break;
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut);
+        _showVoiceSnack('Tomate Cerise');
+        break;
       case VoiceCommand.slideNext:
-        _externalPageController.animateToPage((_currentVegetableIndex + 1) % 2,
-            duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+        _externalPageController.animateToPage(
+            (_currentVegetableIndex + 1) % 2,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut);
         break;
       case VoiceCommand.slidePrev:
-        _externalPageController.animateToPage((_currentVegetableIndex - 1 + 2) % 2,
-            duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
+        _externalPageController.animateToPage(
+            (_currentVegetableIndex - 1 + 2) % 2,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut);
         break;
       case VoiceCommand.returnHome:
         Navigator.of(context).popUntil((r) => r.isFirst);
-        _showVoiceSnack('🏠 Retour accueil'); break;
+        _showVoiceSnack('Retour accueil');
+        break;
       case VoiceCommand.unknown:
-        _showVoiceSnack('❓ Non reconnue : "$raw"'); break;
+        _showVoiceSnack('Non reconnue : "$raw"');
+        break;
     }
   }
 
@@ -443,7 +460,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                height: 36, width: 36,
+                height: 36,
+                width: 36,
                 decoration: BoxDecoration(
                   color: _activeColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(10),
@@ -475,7 +493,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             if (_isListening)
               Container(
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.red.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
@@ -483,23 +502,30 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 child: const Row(children: [
                   Icon(Icons.mic, color: Colors.red, size: 18),
                   SizedBox(width: 4),
-                  Text("ÉCOUTE",
+                  Text("ECOUTE",
                       style: TextStyle(
-                          fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red)),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red)),
                 ]),
               ),
             Container(
               margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               decoration: BoxDecoration(
-                color: isConnected ? Colors.green.shade50 : Colors.red.shade50,
+                color: isConnected
+                    ? Colors.green.shade50
+                    : Colors.red.shade50,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: isConnected ? Colors.green : Colors.red, width: 1.5),
+                    color: isConnected ? Colors.green : Colors.red,
+                    width: 1.5),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Container(
-                    width: 6, height: 6,
+                    width: 6,
+                    height: 6,
                     decoration: BoxDecoration(
                         color: isConnected ? Colors.green : Colors.red,
                         shape: BoxShape.circle)),
@@ -513,32 +539,31 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             ),
           ],
         ),
-
         body: Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
           child: Column(
             children: [
               Expanded(
                 child: VegetableSlider(
-                  sensorDataMap: _sensorDataMap,
-                  soilDataMap: _soilDataMap,
+                  sensorDataMap:     _sensorDataMap,
+                  soilDataMap:       _soilDataMap,
                   thresholdConfigMap: _thresholdMap,
-                  autoModeMap: _autoModeMap,
-                  pumpLoadingMap: _pumpLoadingMap,
-                  evStateMap: _evStateMap,
-                  evLoadingMap: _evLoadingMap,
-                  onEVToggle: _toggleEV,
-                  onModeToggle: _toggleMode,
-                  onOpenSettings: _openSettings,
-                  onOpenHistorique: _openHistorique,
+                  autoEVMap:         _autoEVMap,
+                  pumpLoadingMap:    _pumpLoadingMap,
+                  evStateMap:        _evStateMap,
+                  evLoadingMap:      _evLoadingMap,
+                  onEVToggle:        _toggleEV,
+                  onEVModeToggle:    _toggleEVMode,
+                  onOpenSettings:    _openSettings,
+                  onOpenHistorique:  _openHistorique,
                   onPageChanged: (i) =>
                       setState(() => _currentVegetableIndex = i),
                   externalController: _externalPageController,
-                  activeAlert: _activeAlert,
-                  onAlertDismissed: () => setState(() => _activeAlert = null),
+                  activeAlert:        _activeAlert,
+                  onAlertDismissed: () =>
+                      setState(() => _activeAlert = null),
                 ),
               ),
-
               _buildMainPumpSection(),
               const SizedBox(height: 8),
             ],
@@ -549,11 +574,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _buildMainPumpSection() {
-    final isAuto  = _hydraulicData.mode == HydraulicMode.auto;
-    final isOn    = _hydraulicData.pumpState == PumpState.on;
-    final isAlert = _hydraulicData.isAlert;
-    final pct     = (_hydraulicData.fillPercent / 100).clamp(0.0, 1.0);
-    final levelColor = pct < 0.2 ? Colors.red : pct < 0.5 ? Colors.orange : Colors.blue;
+    final isAuto     = _hydraulicData.mode == HydraulicMode.auto;
+    final isOn       = _hydraulicData.pumpState == PumpState.on;
+    final isAlert    = _hydraulicData.isAlert;
+    final pct        = (_hydraulicData.fillPercent / 100).clamp(0.0, 1.0);
+    final levelColor = pct < 0.2
+        ? Colors.red
+        : pct < 0.5
+            ? Colors.orange
+            : Colors.blue;
 
     return Container(
       decoration: BoxDecoration(
@@ -566,7 +595,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         boxShadow: [
           BoxShadow(
             color: (isAlert ? Colors.red : Colors.blue).withOpacity(0.08),
-            blurRadius: 8, offset: const Offset(0, -2),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
@@ -575,27 +605,34 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(children: [
-            Text(isAlert ? '⚠️' : '💧', style: const TextStyle(fontSize: 20)),
+            Text(isAlert ? '!' : '', style: const TextStyle(fontSize: 20)),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Pompe Principale',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.bold)),
                   Row(children: [
                     Text(
-                      '${_hydraulicData.fillPercent.toStringAsFixed(0)}%  •  ${_hydraulicData.fillLabel}',
+                      '${_hydraulicData.fillPercent.toStringAsFixed(0)}%  —  ${_hydraulicData.fillLabel}',
                       style: TextStyle(fontSize: 10, color: levelColor),
                     ),
                     const SizedBox(width: 8),
                     _dot(_hydraulicData.levelLow, Colors.red),
                     const SizedBox(width: 2),
-                    Text('MIN', style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
+                    Text('MIN',
+                        style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey.shade500)),
                     const SizedBox(width: 8),
                     _dot(_hydraulicData.levelHigh, Colors.green),
                     const SizedBox(width: 2),
-                    Text('MAX', style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
+                    Text('MAX',
+                        style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey.shade500)),
                   ]),
                 ],
               ),
@@ -604,34 +641,42 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               onTap: _mainModeLoading ? null : _toggleMainMode,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isAuto ? Colors.blue.shade100 : Colors.orange.shade100,
+                  color: isAuto
+                      ? Colors.blue.shade100
+                      : Colors.orange.shade100,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: isAuto ? Colors.blue.shade300 : Colors.orange.shade300,
+                    color: isAuto
+                        ? Colors.blue.shade300
+                        : Colors.orange.shade300,
                   ),
                 ),
                 child: _mainModeLoading
                     ? SizedBox(
-                        width: 12, height: 12,
+                        width: 12,
+                        height: 12,
                         child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: isAuto ? Colors.blue.shade700 : Colors.orange.shade700))
+                            color: isAuto
+                                ? Colors.blue.shade700
+                                : Colors.orange.shade700))
                     : Text(
-                        isAuto ? ' AUTO' : ' MANUEL',
+                        isAuto ? 'AUTO' : 'MANUEL',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: isAuto ? Colors.blue.shade700 : Colors.orange.shade700,
+                          color: isAuto
+                              ? Colors.blue.shade700
+                              : Colors.orange.shade700,
                         ),
                       ),
               ),
             ),
           ]),
-
           const SizedBox(height: 8),
-
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
@@ -641,9 +686,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               minHeight: 8,
             ),
           ),
-
           const SizedBox(height: 10),
-
           _buildMainPumpButton(isAuto, isOn),
         ],
       ),
@@ -651,7 +694,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _dot(bool active, Color color) => Container(
-        width: 7, height: 7,
+        width: 7,
+        height: 7,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: active ? color : Colors.grey.shade300,
@@ -662,7 +706,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       );
 
   Widget _buildMainPumpButton(bool isAuto, bool isOn) {
-
     final blocked  = _hydraulicData.levelHigh && !isOn;
     final disabled = isAuto || _mainPumpLoading || blocked;
     final Color btnColor = isAuto
@@ -675,12 +718,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final String btnLabel = _mainPumpLoading
         ? 'EN COURS...'
         : isAuto
-            ? 'GÉRÉ AUTOMATIQUEMENT'
+            ? 'GERE AUTOMATIQUEMENT'
             : blocked
-                ? 'CITERNE PLEINE - POMPE BLOQUEE'
+                ? 'CITERNE PLEINE — POMPE BLOQUEE'
                 : isOn
-                    ? 'ARRÊTER LA POMPE'
-                    : 'DÉMARRER LA POMPE';
+                    ? 'ARRETER LA POMPE'
+                    : 'DEMARRER LA POMPE';
     final IconData btnIcon = isAuto
         ? Icons.smart_toy
         : blocked
@@ -714,7 +757,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             children: [
               if (_mainPumpLoading)
                 const SizedBox(
-                    width: 18, height: 18,
+                    width: 18,
+                    height: 18,
                     child: CircularProgressIndicator(
                         strokeWidth: 2.5, color: Colors.white))
               else

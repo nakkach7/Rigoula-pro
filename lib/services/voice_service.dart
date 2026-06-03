@@ -145,7 +145,7 @@ class VoiceService {
   }
 
   static bool _isWakeWord(String text) {
-    return text.contains('rigolo')  || text.contains('rigola')  ||  text.contains('rigoula') || text.contains('salut rigoula') || text.contains('bonjour rigoula') || text.contains('start')           ||
+    return text.contains('rigolo')  || text.contains('rigola')  ||  text.contains('rigoula') || text.contains('salut rigoula') || text.contains('bonjour rigoula') || text.contains('start') ||
            text.contains('démarre');
   }
 

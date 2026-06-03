@@ -8,7 +8,7 @@ import 'anomaly_banner.dart';
 class SerreData {
   final String name;
   final String emoji;
-  final Color color;
+  final Color  color;
   final String serreId;
 
   const SerreData({
@@ -20,44 +20,41 @@ class SerreData {
 }
 
 class VegetableSlider extends StatefulWidget {
-  final Map<String, SensorData> sensorDataMap;
+  final Map<String, SensorData>     sensorDataMap;
   final Map<String, SoilSensorData> soilDataMap;
   final Map<String, ThresholdConfig> thresholdConfigMap;
-  final Map<String, bool> autoModeMap;
+  final Map<String, bool> autoEVMap;
   final Map<String, bool> pumpLoadingMap;
-
   final Map<String, bool> evStateMap;
   final Map<String, bool> evLoadingMap;
-  final void Function(String serreId) onEVToggle;
 
-  final void Function(String serreId) onModeToggle;
+  final void Function(String serreId) onEVToggle;
+  final void Function(String serreId) onEVModeToggle;
   final void Function(String serreId) onOpenSettings;
   final void Function(String serreId) onOpenHistorique;
 
-  final Function(int)? onPageChanged;
-  final PageController? externalController;
-
-  final AlertPayload? activeAlert;
-  final VoidCallback? onAlertDismissed;
+  final Function(int)?    onPageChanged;
+  final PageController?   externalController;
+  final AlertPayload?     activeAlert;
+  final VoidCallback?     onAlertDismissed;
 
   const VegetableSlider({
     super.key,
     required this.sensorDataMap,
     required this.soilDataMap,
     required this.thresholdConfigMap,
-    required this.autoModeMap,
+    required this.autoEVMap,
     required this.pumpLoadingMap,
     required this.evStateMap,
     required this.evLoadingMap,
     required this.onEVToggle,
-    required this.onModeToggle,
+    required this.onEVModeToggle,
     required this.onOpenSettings,
     required this.onOpenHistorique,
     this.onPageChanged,
     this.externalController,
     this.activeAlert,
     this.onAlertDismissed,
-    void Function(String)? onPumpToggle,
   });
 
   @override
@@ -69,9 +66,9 @@ class _VegetableSliderState extends State<VegetableSlider> {
   int _currentPage = 0;
 
   final Map<String, ScrollController> _scrollControllers = {};
-  final Map<String, GlobalKey> _tempKeys = {};
-  final Map<String, GlobalKey> _humKeys = {};
-  final Map<String, GlobalKey> _soilKeys = {};
+  final Map<String, GlobalKey> _tempKeys  = {};
+  final Map<String, GlobalKey> _humKeys   = {};
+  final Map<String, GlobalKey> _soilKeys  = {};
 
   static const List<SerreData> serres = [
     SerreData(name: "Tomate",        emoji: "🍅", color: Color(0xFFE74C3C), serreId: "tomate"),
@@ -84,9 +81,9 @@ class _VegetableSliderState extends State<VegetableSlider> {
     _pageController = widget.externalController ?? PageController();
     for (final s in serres) {
       _scrollControllers[s.serreId] = ScrollController();
-      _tempKeys[s.serreId] = GlobalKey();
-      _humKeys[s.serreId]  = GlobalKey();
-      _soilKeys[s.serreId] = GlobalKey();
+      _tempKeys[s.serreId]  = GlobalKey();
+      _humKeys[s.serreId]   = GlobalKey();
+      _soilKeys[s.serreId]  = GlobalKey();
     }
     if (widget.activeAlert != null) {
       SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -122,14 +119,14 @@ class _VegetableSliderState extends State<VegetableSlider> {
     if (scrollCtrl == null || !scrollCtrl.hasClients) return;
     GlobalKey? targetKey;
     switch (alert.affectedSensor) {
-      case 'temperature': targetKey = _tempKeys[alert.serreId]; break;
-      case 'humidity':    targetKey = _humKeys[alert.serreId];  break;
-      case 'soil':        targetKey = _soilKeys[alert.serreId]; break;
+      case 'temperature': targetKey = _tempKeys[alert.serreId];  break;
+      case 'humidity':    targetKey = _humKeys[alert.serreId];   break;
+      case 'soil':        targetKey = _soilKeys[alert.serreId];  break;
     }
     if (targetKey?.currentContext == null) return;
     final box = targetKey!.currentContext!.findRenderObject() as RenderBox?;
     if (box == null) return;
-    final offset = box.localToGlobal(Offset.zero).dy;
+    final offset      = box.localToGlobal(Offset.zero).dy;
     final targetScroll = scrollCtrl.offset + offset - 160;
     scrollCtrl.animateTo(
       targetScroll.clamp(0.0, scrollCtrl.position.maxScrollExtent),
@@ -145,9 +142,6 @@ class _VegetableSliderState extends State<VegetableSlider> {
     super.dispose();
   }
 
-  Color _getValueColor(double value, double min, double max) =>
-      (value < min || value > max) ? Colors.red : Colors.green.shade700;
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -157,12 +151,12 @@ class _VegetableSliderState extends State<VegetableSlider> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "Surveillance des serres",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
+              const Text("Surveillance des serres",
+                  style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600)),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(12),
@@ -170,16 +164,14 @@ class _VegetableSliderState extends State<VegetableSlider> {
                 child: Text(
                   "${_currentPage + 1}/${serres.length}",
                   style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      fontSize: 12,
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
         ),
-
         Expanded(
           child: PageView.builder(
             controller: _pageController,
@@ -188,10 +180,10 @@ class _VegetableSliderState extends State<VegetableSlider> {
               setState(() => _currentPage = index);
               widget.onPageChanged?.call(index);
             },
-            itemBuilder: (context, index) => _buildSerreCard(serres[index]),
+            itemBuilder: (context, index) =>
+                _buildSerreCard(serres[index]),
           ),
         ),
-
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
@@ -201,7 +193,7 @@ class _VegetableSliderState extends State<VegetableSlider> {
               (index) => AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: _currentPage == index ? 16 : 6,
+                width:  _currentPage == index ? 16 : 6,
                 height: 6,
                 decoration: BoxDecoration(
                   color: _currentPage == index
@@ -218,12 +210,12 @@ class _VegetableSliderState extends State<VegetableSlider> {
   }
 
   Widget _buildSerreCard(SerreData serre) {
-    final sensor     = widget.sensorDataMap[serre.serreId]     ?? SensorData.initial();
-    final soil       = widget.soilDataMap[serre.serreId]       ?? SoilSensorData.initial();
-    final config     = widget.thresholdConfigMap[serre.serreId] ?? ThresholdConfig();
-    final isAuto     = widget.autoModeMap[serre.serreId]       ?? true;
-    final evOpen     = widget.evStateMap[serre.serreId]        ?? false;
-    final evLoading  = widget.evLoadingMap[serre.serreId]      ?? false;
+    final sensor    = widget.sensorDataMap[serre.serreId]     ?? SensorData.initial();
+    final soil      = widget.soilDataMap[serre.serreId]       ?? SoilSensorData.initial();
+    final config    = widget.thresholdConfigMap[serre.serreId] ?? ThresholdConfig();
+    final isEVAuto  = widget.autoEVMap[serre.serreId]         ?? true;
+    final evOpen    = widget.evStateMap[serre.serreId]        ?? false;
+    final evLoading = widget.evLoadingMap[serre.serreId]      ?? false;
 
     final alert    = widget.activeAlert;
     final hasAlert = alert != null && alert.serreId == serre.serreId;
@@ -269,65 +261,65 @@ class _VegetableSliderState extends State<VegetableSlider> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(serre.name,
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: serre.color)),
-                        ],
-                      ),
+                      child: Text(serre.name,
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: serre.color)),
                     ),
                     IconButton(
                       icon: Icon(Icons.history, color: serre.color, size: 20),
                       tooltip: 'Historique ${serre.name}',
                       onPressed: () => widget.onOpenHistorique(serre.serreId),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints:
+                          const BoxConstraints(minWidth: 32, minHeight: 32),
                     ),
                     IconButton(
                       icon: Icon(Icons.settings, color: serre.color, size: 20),
-                      tooltip: 'Paramètres ${serre.name}',
+                      tooltip: 'Parametres ${serre.name}',
                       onPressed: () => widget.onOpenSettings(serre.serreId),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints:
+                          const BoxConstraints(minWidth: 32, minHeight: 32),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 10),
 
                 if (hasAlert)
                   AnomalyBanner(
-                    key: ValueKey('banner_${alert.serreId}_${alert.timestamp}'),
+                    key: ValueKey(
+                        'banner_${alert.serreId}_${alert.timestamp}'),
                     payload: alert!,
                     onDismiss: () => widget.onAlertDismissed?.call(),
                   ),
 
                 GestureDetector(
-                  onTap: () => widget.onModeToggle(serre.serreId),
+                  onTap: () => widget.onEVModeToggle(serre.serreId),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 7),
                     decoration: BoxDecoration(
                       color: serre.color.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: serre.color.withOpacity(0.3)),
+                      border:
+                          Border.all(color: serre.color.withOpacity(0.3)),
                     ),
                     child: Row(
                       children: [
                         Icon(
-                          isAuto ? Icons.smart_toy : Icons.pan_tool,
-                          color: serre.color, size: 14,
+                          isEVAuto ? Icons.smart_toy : Icons.pan_tool,
+                          color: serre.color,
+                          size: 14,
                         ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            isAuto
-                                ? 'AUTO — l\'irrigation automatique '
-                                : 'MANUEL — Vous contrôlez l\'électrovanne',
+                            isEVAuto
+                                ? 'AUTO — irrigation automatique'
+                                : 'MANUEL — vous controlez l\'electrovanne',
                             style: TextStyle(
                                 fontSize: 11,
                                 color: serre.color,
@@ -337,11 +329,13 @@ class _VegetableSliderState extends State<VegetableSlider> {
                         Transform.scale(
                           scale: 0.7,
                           child: Switch(
-                            value: !isAuto,
-                            onChanged: (_) => widget.onModeToggle(serre.serreId),
+                            value: !isEVAuto,
+                            onChanged: (_) =>
+                                widget.onEVModeToggle(serre.serreId),
                             activeColor: Colors.orange,
                             inactiveThumbColor: serre.color,
-                            inactiveTrackColor: serre.color.withOpacity(0.2),
+                            inactiveTrackColor:
+                                serre.color.withOpacity(0.2),
                           ),
                         ),
                       ],
@@ -353,48 +347,51 @@ class _VegetableSliderState extends State<VegetableSlider> {
 
                 _buildSensorRow(
                   rowKey: _tempKeys[serre.serreId]!,
-                  icon: Icons.thermostat,
+                  icon:  Icons.thermostat,
                   color: Colors.orange,
-                  label: "Température",
+                  label: "Temperature",
                   value: sensor.temperature,
-                  unit: "°C",
-                  min: config.tempMin,
-                  max: config.tempMax,
-                  isHighlighted: hasAlert && alert!.affectedSensor == 'temperature',
+                  unit:  "°C",
+                  min:   config.tempMin,
+                  max:   config.tempMax,
+                  isHighlighted:
+                      hasAlert && alert!.affectedSensor == 'temperature',
                 ),
                 const SizedBox(height: 8),
                 _buildSensorRow(
                   rowKey: _humKeys[serre.serreId]!,
-                  icon: Icons.water_drop,
+                  icon:  Icons.water_drop,
                   color: Colors.blue,
-                  label: "Humidité air",
+                  label: "Humidite air",
                   value: sensor.humidity,
-                  unit: "%",
-                  min: config.humMin,
-                  max: config.humMax,
-                  isHighlighted: hasAlert && alert!.affectedSensor == 'humidity',
+                  unit:  "%",
+                  min:   config.humMin,
+                  max:   config.humMax,
+                  isHighlighted:
+                      hasAlert && alert!.affectedSensor == 'humidity',
                 ),
                 const SizedBox(height: 8),
                 _buildSensorRow(
                   rowKey: _soilKeys[serre.serreId]!,
-                  icon: Icons.grass,
+                  icon:  Icons.grass,
                   color: Colors.brown,
-                  label: "Humidité sol",
+                  label: "Humidite sol",
                   value: sensor.soilPercent,
-                  unit: "%",
-                  min: config.solMin,
-                  max: config.solMax,
-                  isHighlighted: hasAlert && alert!.affectedSensor == 'soil',
+                  unit:  "%",
+                  min:   config.solMin,
+                  max:   config.solMax,
+                  isHighlighted:
+                      hasAlert && alert!.affectedSensor == 'soil',
                 ),
 
                 const SizedBox(height: 14),
 
                 _buildEVButton(
-                  serreId: serre.serreId,
+                  serreId:    serre.serreId,
                   serreColor: serre.color,
-                  isOpen: evOpen,
-                  isAutoMode: isAuto,
-                  isLoading: evLoading,
+                  isOpen:     evOpen,
+                  isAutoMode: isEVAuto,
+                  isLoading:  evLoading,
                 ),
 
                 const SizedBox(height: 10),
@@ -403,15 +400,21 @@ class _VegetableSliderState extends State<VegetableSlider> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(children: [
-                      Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
+                      Icon(Icons.access_time,
+                          size: 12, color: Colors.grey.shade500),
                       const SizedBox(width: 4),
                       Text(sensor.time,
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600)),
                     ]),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: evOpen ? Colors.blue.shade50 : Colors.grey.shade100,
+                        color: evOpen
+                            ? Colors.blue.shade50
+                            : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(children: [
@@ -420,11 +423,13 @@ class _VegetableSliderState extends State<VegetableSlider> {
                             color: evOpen ? Colors.blue : Colors.grey),
                         const SizedBox(width: 3),
                         Text(
-                          evOpen ? "EV OUVERTE" : "EV FERMÉE",
+                          evOpen ? "EV OUVERTE" : "EV FERMEE",
                           style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: evOpen ? Colors.blue : Colors.grey.shade700),
+                              color: evOpen
+                                  ? Colors.blue
+                                  : Colors.grey.shade700),
                         ),
                       ]),
                     ),
@@ -435,10 +440,13 @@ class _VegetableSliderState extends State<VegetableSlider> {
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Row(children: [
-                      Icon(Icons.sensors, size: 10, color: Colors.grey.shade400),
+                      Icon(Icons.sensors,
+                          size: 10, color: Colors.grey.shade400),
                       const SizedBox(width: 3),
                       Text("Brut: ${sensor.soilRaw}",
-                          style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade500)),
                     ]),
                   ),
               ],
@@ -451,32 +459,24 @@ class _VegetableSliderState extends State<VegetableSlider> {
 
   Widget _buildEVButton({
     required String serreId,
-    required Color serreColor,
-    required bool isOpen,
-    required bool isAutoMode,
-    required bool isLoading,
+    required Color  serreColor,
+    required bool   isOpen,
+    required bool   isAutoMode,
+    required bool   isLoading,
   }) {
     final isDisabled = isAutoMode || isLoading;
-
     final Color btnColor = isDisabled
         ? Colors.grey
         : isOpen
             ? Colors.orange.shade600
             : serreColor;
-
     final String btnLabel = isLoading
         ? 'EN COURS...'
         : isAutoMode
-            ? 'EV GÉRÉE AUTOMATIQUEMENT'
+            ? 'EV GEREE AUTOMATIQUEMENT'
             : isOpen
-                ? 'FERMER L\'ÉLECTROVANNE'
-                : 'OUVRIR L\'ÉLECTROVANNE';
-
-    final IconData btnIcon = isAutoMode
-        ? Icons.smart_toy
-        : isOpen
-            ? Icons.water_drop        
-            : Icons.water_drop;        
+                ? 'FERMER L\'ELECTROVANNE'
+                : 'OUVRIR L\'ELECTROVANNE';
 
     return Opacity(
       opacity: isDisabled ? 0.55 : 1.0,
@@ -512,15 +512,13 @@ class _VegetableSliderState extends State<VegetableSlider> {
                       strokeWidth: 2, color: Colors.white),
                 )
               else
-                Icon(btnIcon, color: Colors.white, size: 20),
+                Icon(Icons.water_drop, color: Colors.white, size: 20),
               const SizedBox(width: 8),
-              Text(
-                btnLabel,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14),
-              ),
+              Text(btnLabel,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14)),
             ],
           ),
         ),
@@ -530,16 +528,16 @@ class _VegetableSliderState extends State<VegetableSlider> {
 
   Widget _buildSensorRow({
     required GlobalKey rowKey,
-    required IconData icon,
-    required Color color,
-    required String label,
-    required double value,
-    required String unit,
-    required double min,
-    required double max,
+    required IconData  icon,
+    required Color     color,
+    required String    label,
+    required double    value,
+    required String    unit,
+    required double    min,
+    required double    max,
     bool isHighlighted = false,
   }) {
-    final outOfRange = value < min || value > max;
+    final outOfRange  = value < min || value > max;
     final statusColor = outOfRange ? Colors.red : Colors.green.shade700;
 
     return AnimatedContainer(
@@ -553,11 +551,12 @@ class _VegetableSliderState extends State<VegetableSlider> {
             ? Border.all(color: Colors.red.shade400, width: 2)
             : Border.all(color: Colors.grey.shade200),
         boxShadow: isHighlighted
-            ? [BoxShadow(
-                color: Colors.red.withOpacity(0.15),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              )]
+            ? [
+                BoxShadow(
+                    color: Colors.red.withOpacity(0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2))
+              ]
             : [],
       ),
       child: Row(children: [
@@ -580,16 +579,18 @@ class _VegetableSliderState extends State<VegetableSlider> {
               Row(
                 children: [
                   Text(label,
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey.shade600)),
                   if (isHighlighted) ...[
                     const SizedBox(width: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text('⚠ ALERTE',
+                      child: const Text('ALERTE',
                           style: TextStyle(
                               fontSize: 8,
                               color: Colors.white,
@@ -612,14 +613,16 @@ class _VegetableSliderState extends State<VegetableSlider> {
                 const SizedBox(width: 6),
                 Flexible(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 1),
                     decoration: BoxDecoration(
                       color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       "${min.toStringAsFixed(0)}-${max.toStringAsFixed(0)}",
-                      style: TextStyle(fontSize: 9, color: statusColor),
+                      style: TextStyle(
+                          fontSize: 9, color: statusColor),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
