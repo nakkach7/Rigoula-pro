@@ -33,15 +33,13 @@ class HydraulicData {
     final p = pump ?? {};
     final combined = {...r, ...p};
 
-    final String modeStr = (p['mode'] ?? 'AUTO').toString().toUpperCase();
+    final String modeStr =(p['mode_pompe'] ?? 'AUTO').toString().toUpperCase();
     final HydraulicMode hMode =
         modeStr == 'MANUEL' ? HydraulicMode.manuel : HydraulicMode.auto;
 
     final String pumpRaw;
     if (hMode == HydraulicMode.manuel) {
-      pumpRaw = (p['cmd'] ?? p['state'] ?? p['pump'] ?? 'OFF')
-          .toString()
-          .toUpperCase();
+      pumpRaw =  (p['pump'] ?? 'OFF').toString().toUpperCase();
     } else {
       pumpRaw = (p['state'] ?? p['pump'] ?? 'OFF')
           .toString()

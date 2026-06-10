@@ -189,31 +189,31 @@ class FirebaseService {
       _hydraulicReservoirRef.onValue;
 
   static Stream<DatabaseEvent> getHydraulicPumpStream() =>
-      _hydraulicPompRef.onValue;
+      _cmdRef(SerreId.tomate).onValue;
 
   static Future<bool> setHydraulicPumpCmd(bool on) async {
-    try {
-      final value = on ? 'ON' : 'OFF';
-      await _hydraulicPompRef.update({
-        'cmd':   value,
-        'state': value,
-      });
-      return true;
-    } catch (e) {
-      debugPrint('setHydraulicPumpCmd: $e');
-      return false;
-    }
+  try {
+    await _cmdRef(SerreId.tomate).update({
+      'pump': on ? 'ON' : 'OFF',
+    });
+    return true;
+  } catch (e) {
+    debugPrint('setHydraulicPumpCmd: $e');
+    return false;
   }
+}
 
   static Future<bool> setHydraulicMode(String mode) async {
-    try {
-      await _hydraulicPompRef.update({'mode': mode});
-      return true;
-    } catch (e) {
-      debugPrint('setHydraulicMode: $e');
-      return false;
-    }
+  try {
+    await _cmdRef(SerreId.tomate).update({
+      'mode_pompe': mode,
+    });
+    return true;
+  } catch (e) {
+    debugPrint('setHydraulicMode: $e');
+    return false;
   }
+}
 
   static Future<void> logAction({
     required String serreId,
