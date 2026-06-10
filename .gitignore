@@ -30,6 +30,7 @@ firestore_import/serviceAccountKey.json
 Thumbs.db
 
 # Secrets
-lib/firebase_options.dart
 backend/serviceAccountKey.json
 .env
+lib/firebase_options.dart
+firebase.json
